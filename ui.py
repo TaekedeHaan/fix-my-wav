@@ -44,9 +44,18 @@ class UI:
         self.listbox = listbox
 
     def __update_direcotry(self):
-        self.core.base_path = pathlib.Path(
-            filedialog.askdirectory(initialdir=self.core.base_path, mustexist=True)
+        directory = filedialog.askdirectory(
+            initialdir=self.core.base_path, mustexist=True
         )
+
+        try:
+            self.core.base_path = pathlib.Path(directory)
+        except NotADirectoryError as e:
+            print(
+                f"Failed to set path to {self.core.base_path}, caught the following exception: {e}"
+            )
+            return
+
         self.ent_directory.delete(1, tk.END)  # Remove current text in entry
         self.ent_directory.insert(0, self.core.base_path)  # Insert the 'path'
 

@@ -171,7 +171,9 @@ class Core:
     @base_path.setter
     def base_path(self, base_path: pathlib.Path):
         if not base_path.is_dir():
-            print(f"Can not set base path to {base_path}: it does not exsit")
+            raise NotADirectoryError(
+                f"Can not set base path to {base_path}: it does not exsit"
+            )
 
         print(f"Setting base path to {base_path}")
         self.reset()
