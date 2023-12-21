@@ -75,8 +75,12 @@ class UI:
         # list incompatible wavs
         frm_list_incompatible_wavs = tk.Frame(window)
 
-        label = ttk.Label(frm_list_incompatible_wavs, text="Incompatible wav's")
-        label.pack(side=tk.TOP, anchor=tk.NW)
+        self.str_var_suspicious_wavs = tk.StringVar()
+        lbl_suspicious_wavs = tk.Label(
+            frm_list_incompatible_wavs,
+            textvariable=self.str_var_suspicious_wavs,
+        )
+        lbl_suspicious_wavs.pack(side=tk.TOP, anchor=tk.NW)
 
         # tree view
         frm_tree_view = tk.Frame(frm_list_incompatible_wavs)
@@ -105,17 +109,18 @@ class UI:
         tree.pack(side=tk.TOP, fill=tk.X)
         frm_tree_view.pack(fill=tk.X)
 
-        # results
-        self.str_var_suspicious_wavs = tk.StringVar()
-        lbl_suspicious_wavs = tk.Label(
-            frm_list_incompatible_wavs,
-            textvariable=self.str_var_suspicious_wavs,
+        # Fix
+        frm_fix_incompatible_wavs = tk.Frame(window)
+        btn_fix_incompatible_wav = tk.Button(
+            frm_fix_incompatible_wavs,
+            text="Fix incompatible wav's",
+            command=self.__fix_incompatible_wavs,
         )
-        lbl_suspicious_wavs.pack(side=tk.TOP, anchor=tk.NW)
+        btn_fix_incompatible_wav.pack(side=tk.LEFT)
 
         self.str_var_selected_wavs = tk.StringVar()
         lbl_selected_wavs = tk.Label(
-            frm_list_incompatible_wavs,
+            frm_fix_incompatible_wavs,
             textvariable=self.str_var_selected_wavs,
         )
         lbl_selected_wavs.pack(side=tk.TOP, anchor=tk.NW)
@@ -124,6 +129,7 @@ class UI:
         frm_browse.pack(fill=tk.X)
         frm_execute.pack(fill=tk.X)
         frm_list_incompatible_wavs.pack(fill=tk.X)
+        frm_fix_incompatible_wavs.pack(fill=tk.X)
 
         # set members
         self.window = window
@@ -156,7 +162,7 @@ class UI:
             f"Analyzed {self.core.n_processed_files:,}/{self.core.n_files:,} files"
         )
         self.str_var_suspicious_wavs.set(
-            f"{self.core.n_suspicious_files:,}/{self.core.n_files:,} are incompatible"
+            f" Found {self.core.n_suspicious_files:,}/{self.core.n_files:,} incompatible wav's:"
         )
 
         self.str_var_selected_wavs.set(
@@ -199,6 +205,18 @@ class UI:
     def __find_incompatible_wavs(self):
         thread = threading.Thread(target=self.core.find_suspicious_wav_files)
         thread.start()
+
+    def __fix_incompatible_wavs(self):
+        indices = self.tree.selection()
+        if not indices:
+            logger.info("No files selected")
+
+        int_indices = [int(index) for index in indices]
+        thread = threading.Thread(
+            target=self.core.fix_suspicious_wav_files, args=(int_indices,)
+        )
+        thread.start()
+        pass
 
     def run(self):
         self.__tick()

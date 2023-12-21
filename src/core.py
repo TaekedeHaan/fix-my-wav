@@ -1,5 +1,6 @@
 import pathlib
 import logging
+from typing import Optional
 
 from src import constants
 from src import utils
@@ -82,37 +83,60 @@ class Core:
 
         return True
 
-    def fix_suspicious_wav_files(self):
+    def fix_suspicious_wav_files(self, indices: Optional[list[int]] = None):
         if not self._files:
             logger.info(
                 "Can not fix suspicious files: first find some suspicious files!"
             )
             return False
 
-        logger.info(
-            f"Will replace {self.suspicious_hex_value} at offset {constants.AUDIO_FORMAT_OFFSET} and field size {constants.AUDIO_FORMAT_FIELD_SIZE} with {self.new_hex_value}"
-        )
-        overall_success = True
-        for wav_file in self._suspicious_files:
-            success = utils.set_hex_data(
-                wav_file,
-                constants.AUDIO_FORMAT_OFFSET,
-                constants.AUDIO_FORMAT_FIELD_SIZE,
-                self.new_hex_value,
-            )
-            if not success:
-                logger.error(f"Failed to fix {wav_file.name}")
-                overall_success = False
-
-            # verify whether problem was fixed
-            is_still_suspisious = self.is_wav_file_suspicious(wav_file)
-            if is_still_suspisious:
+        if indices is None:
+            files = self._suspicious_files
+        else:
+            try:
+                files = [self._suspicious_files[i] for i in indices]
+            except Exception as e:
                 logger.warning(
-                    f"Wav file {wav_file.name} is still suspicious after trying to apply fix"
+                    f"Failed to fix suspicious wav file, indices invalid. Caught the following exception:\n {e}\n\nFor indices\n{indices}"
                 )
-                overall_success = False
+                return False
+
+        overall_success = True
+        for file in files:
+            success = self.fix_suspicious_wav_file(file)
+            overall_success = overall_success and success
 
         return overall_success
+
+    def fix_suspicious_wav_file(self, file: pathlib.Path):
+        if file not in self._suspicious_files:
+            logger.warning(f"Refusing to fix {file.name}: there is nothing to fix!")
+            return False
+
+        logger.info(
+            f"Will replace {self.suspicious_hex_value} at offset {constants.AUDIO_FORMAT_OFFSET} and field size {constants.AUDIO_FORMAT_FIELD_SIZE} with {self.new_hex_value} for file {file}"
+        )
+
+        success = utils.set_hex_data(
+            file,
+            constants.AUDIO_FORMAT_OFFSET,
+            constants.AUDIO_FORMAT_FIELD_SIZE,
+            self.new_hex_value,
+        )
+        if not success:
+            logger.error(f"Failed to fix {file.name}")
+            return False
+
+        # verify whether problem was fixed
+        is_still_suspicious = self.is_wav_file_suspicious(file)
+        if is_still_suspicious:
+            logger.warning(
+                f"Wav file {file.name} is still suspicious after trying to apply fix"
+            )
+            return False
+
+        self._suspicious_files.remove(file)
+        return True
 
     @property
     def base_path(self):
