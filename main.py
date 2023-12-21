@@ -1,7 +1,7 @@
 import pathlib
 
-from ui import UI
-from core import Core
+from src.ui import UI
+from src.core import Core
 
 
 def main():

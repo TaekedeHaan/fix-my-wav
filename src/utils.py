@@ -1,4 +1,7 @@
 import pathlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def read_hex_value(file: pathlib.Path, offset: int, field_size: int):
@@ -18,7 +21,7 @@ def read_hex_value(file: pathlib.Path, offset: int, field_size: int):
         hex_byte = file_handle.read(1).hex()
 
         if not hex_byte:
-            print(
+            logger.error(
                 "The provided offset/size goes out of range. Please verify whether these values are correct. If so the file might be corrupted"
             )
             break
@@ -28,7 +31,7 @@ def read_hex_value(file: pathlib.Path, offset: int, field_size: int):
     file_handle.close()
 
     if len(hex_data) != field_size:
-        print(
+        logger.error(
             f"The found hex data does of length {len(hex_data)} not match the expected field size {field_size}. File file might be empty or corrupted, skipping this file"
         )
         return ""
@@ -42,7 +45,7 @@ def set_hex_data(file: pathlib.Path, offset: int, field_size: int, hex_value: st
     hex_data = [hex_value[i : i + 2] for i in range(0, len(hex_value), 2)]
 
     if len(hex_data) != field_size:
-        print(
+        logger.error(
             f"The new hex data of length {len(hex_data)} does not match the audio format field size {field_size}. Refusing to set the hex data"
         )
         return False
@@ -69,10 +72,12 @@ def try_open_file(file: pathlib.Path, mode: str):
     try:
         return open(file, mode)
     except PermissionError as e:
-        print(
+        logger.warning(
             f"Failed to open file {file.name}: the permission was denied. Caught the following exception:\n{e}"
         )
         return None
     except Exception as e:
-        print(f"Failed to open file {file.name}. Caught the following exception:\n{e}")
+        logger.warning(
+            f"Failed to open file {file.name}. Caught the following exception:\n{e}"
+        )
         return None

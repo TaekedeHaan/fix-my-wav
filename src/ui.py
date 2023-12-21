@@ -2,9 +2,12 @@ import pathlib
 import tkinter as tk
 import tkinter.ttk as ttk
 import threading
-
-from core import Core
 from tkinter import filedialog
+import logging
+
+from src.core import Core
+
+logger = logging.getLogger(__name__)
 
 
 class UI:
@@ -97,7 +100,7 @@ class UI:
         try:
             self.core.base_path = pathlib.Path(directory)
         except NotADirectoryError as e:
-            print(
+            logger.warning(
                 f"Failed to set path to {self.core.base_path}, caught the following exception: {e}"
             )
 
