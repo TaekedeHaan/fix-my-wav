@@ -7,10 +7,27 @@ WAVE_FORMAT_EXTENSIBLE = 65534
 WAVE_FORMAT_PCM = 1
 
 
+def try_open_file(file: pathlib.Path, mode: str):
+    try:
+        return open(file, mode)
+    except PermissionError as e:
+        print(
+            f"Failed to open file {file.name}: the permision was denied. Caught the following exception:\n{e}"
+        )
+        return None
+    except Exception as e:
+        print(f"Failed to open file {file.name}. Caught the following exception:\n{e}")
+        return None
+
+
 def read_hex_value(file: pathlib.Path, offset: int, field_size: int):
-    print(f"Opening {file.name} to read its contents")
+    maybe_file_handle = try_open_file(file, "rb")
+    if maybe_file_handle is None:
+        return ""
+
+    file_handle = maybe_file_handle
+
     hex_data: list[str] = []
-    file_handle = open(file, "rb")
 
     # Ignore the data before the specfied offset
     file_handle.seek(offset)
@@ -27,7 +44,6 @@ def read_hex_value(file: pathlib.Path, offset: int, field_size: int):
 
         hex_data.append(hex_byte)
 
-    print(f"Closing {file.name}")
     file_handle.close()
 
     if len(hex_data) != AUDIO_FORMAT_FIELD_SIZE:
@@ -52,22 +68,25 @@ def set_hex_data(file: pathlib.Path, offset: int, field_size: int, hex_value: st
 
     hex_data.reverse()
 
-    print(f"Opening {file.name} to edit its contents")
-    file_handle = open(file, "r+b")
+    # try to open file
+    maybe_file_handle = try_open_file(file, "r+b")
+    if maybe_file_handle is None:
+        return ""
+
+    file_handle = maybe_file_handle
     file_handle.seek(offset)
 
     # Overwrite
     for hex_value in hex_data:
         file_handle.write(bytes((int(hex_value),)))
 
-    print(f"Closing {file.name}")
     file_handle.close()
     return True
 
 
 class Core:
-    def __init__(self):
-        self._base_path = pathlib.Path.home() / "Music"
+    def __init__(self, base_path: pathlib.Path = pathlib.Path.home()):
+        self._base_path = base_path
         self._files: list[pathlib.Path] = []
         self._suspicious_files: list[pathlib.Path] = []
 
@@ -176,12 +195,20 @@ class Core:
         self._base_path = base_path
 
     @property
+    def files(self):
+        return self._files.copy()
+
+    @property
     def suspicious_files(self):
         return self._suspicious_files.copy()
 
     @property
-    def files(self):
-        return self._files.copy()
+    def n_files(self):
+        return len(self._files)
+
+    @property
+    def n_suspicious_files(self):
+        return len(self._suspicious_files)
 
 
 def main():
