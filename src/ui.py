@@ -85,6 +85,10 @@ class UI:
         self.ent_directory = ent_directory
         self.listbox = listbox
 
+        # settings
+        self.frequency = 50
+        self.update_rate_ms = round(1000 / self.frequency)
+
     def __update_direcotry(self):
         directory = filedialog.askdirectory(
             initialdir=self.core.base_path, mustexist=True
@@ -102,16 +106,20 @@ class UI:
         self.__find_wavs()
 
     def __tick(self):
-        self.str_var_wavs.set(f"Found {self.core.n_files} files")
-        self.str_var_suspicious_wavs.set(f"Found {self.core.n_suspicious_files} files")
+        self.str_var_wavs.set(f"Found {self.core.n_files:,} files")
+        self.str_var_suspicious_wavs.set(
+            f"Selected {self.core.n_suspicious_files:,}/{self.core.n_files:,} files"
+        )
 
+        # Update list if chnage was detected
         if self.suspicious_files != self.core.suspicious_files:
             self.suspicious_files = self.core.suspicious_files
             self.listbox.delete(0, tk.END)
             for i, file in enumerate(self.core.suspicious_files):
                 self.listbox.insert(i, file.name)
 
-        self.window.after(10, self.__tick)
+        # plan next tick
+        self.window.after(self.update_rate_ms, self.__tick)
 
     def __find_wavs(self):
         thread = threading.Thread(target=self.core.find_wav_files)
