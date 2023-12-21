@@ -61,7 +61,7 @@ class Core:
             file, constants.AUDIO_FORMAT_OFFSET, constants.AUDIO_FORMAT_FIELD_SIZE
         )
         if not hex_value:
-            print("Failed to read the hex value from the file")
+            print(f"Failed to read the hex value from the file {file}")
             return False
 
         int_value = int(hex_value, 16)

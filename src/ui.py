@@ -1,6 +1,7 @@
 import pathlib
 import tkinter as tk
 import tkinter.ttk as ttk
+import threading
 
 from core import Core
 from tkinter import filedialog
@@ -9,6 +10,9 @@ from tkinter import filedialog
 class UI:
     def __init__(self, core: Core):
         self.core = core
+
+        # An easy but dirty way to detect whether these have been changes since the last call
+        self.suspicious_files = []
 
         window = tk.Tk()
 
@@ -97,22 +101,28 @@ class UI:
         self.ent_directory.insert(0, str(self.core.base_path))
         self.__find_wavs()
 
-    def __find_wavs(self):
-        self.core.find_wav_files()
+    def __tick(self):
         self.str_var_wavs.set(f"Found {self.core.n_files} files")
-        self.window.update_idletasks()
+        self.str_var_suspicious_wavs.set(f"Found {self.core.n_suspicious_files} files")
+
+        if self.suspicious_files != self.core.suspicious_files:
+            self.suspicious_files = self.core.suspicious_files
+            self.listbox.delete(0, tk.END)
+            for i, file in enumerate(self.core.suspicious_files):
+                self.listbox.insert(i, file.name)
+
+        self.window.after(10, self.__tick)
+
+    def __find_wavs(self):
+        thread = threading.Thread(target=self.core.find_wav_files)
+        thread.start()
 
     def __find_incompatible_wavs(self):
-        self.listbox.delete(0, tk.END)
-        self.core.find_suspicious_wav_files()
-
-        self.str_var_suspicious_wavs.set(f"Found {self.core.n_suspicious_files} files")
-        self.window.update_idletasks()
-
-        for i, file in enumerate(self.core.suspicious_files):
-            self.listbox.insert(i, file.name)
+        thread = threading.Thread(target=self.core.find_suspicious_wav_files)
+        thread.start()
 
     def run(self):
+        self.__tick()
         self.window.mainloop()
 
     def exit(self):
