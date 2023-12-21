@@ -10,16 +10,16 @@ def read_hex_value(file: pathlib.Path, offset: int, field_size: int):
 
     hex_data: list[str] = []
 
-    # Ignore the data before the specfied offset
+    # Ignore the data before the specified offset
     file_handle.seek(offset)
 
-    # Read the spcified number of hex values starting at the offset
+    # Read the specified number of hex values starting at the offset
     for _ in range(field_size):
         hex_byte = file_handle.read(1).hex()
 
         if not hex_byte:
             print(
-                "The provided offset/size goes out of range. Please verify whether these values are correct. If so the file might be corrpted"
+                "The provided offset/size goes out of range. Please verify whether these values are correct. If so the file might be corrupted"
             )
             break
 
@@ -43,7 +43,7 @@ def set_hex_data(file: pathlib.Path, offset: int, field_size: int, hex_value: st
 
     if len(hex_data) != field_size:
         print(
-            f"The new hex data of lenth {len(hex_data)} does not match the audio format field size {field_size}. Refusing to set the hex data"
+            f"The new hex data of length {len(hex_data)} does not match the audio format field size {field_size}. Refusing to set the hex data"
         )
         return False
 
@@ -70,7 +70,7 @@ def try_open_file(file: pathlib.Path, mode: str):
         return open(file, mode)
     except PermissionError as e:
         print(
-            f"Failed to open file {file.name}: the permision was denied. Caught the following exception:\n{e}"
+            f"Failed to open file {file.name}: the permission was denied. Caught the following exception:\n{e}"
         )
         return None
     except Exception as e:

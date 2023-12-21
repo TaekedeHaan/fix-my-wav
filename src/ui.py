@@ -26,7 +26,7 @@ class UI:
         ent_directory.insert(0, str(self.core.base_path))
 
         btn_browse = tk.Button(
-            frm_browse, text="Browse", command=self.__update_direcotry
+            frm_browse, text="Browse", command=self.__update_directory
         )
 
         ent_directory.pack(fill=tk.X, side=tk.LEFT, expand=True)
@@ -89,7 +89,7 @@ class UI:
         self.frequency = 50
         self.update_rate_ms = round(1000 / self.frequency)
 
-    def __update_direcotry(self):
+    def __update_directory(self):
         directory = filedialog.askdirectory(
             initialdir=self.core.base_path, mustexist=True
         )
@@ -111,7 +111,7 @@ class UI:
             f"Selected {self.core.n_suspicious_files:,}/{self.core.n_files:,} files"
         )
 
-        # Update list if chnage was detected
+        # Update list if change was detected
         if self.suspicious_files != self.core.suspicious_files:
             self.suspicious_files = self.core.suspicious_files
             self.listbox.delete(0, tk.END)

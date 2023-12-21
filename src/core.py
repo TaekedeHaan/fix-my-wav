@@ -29,7 +29,7 @@ class Core:
             self._files.append(file)
 
         if not self._files:
-            print(f"Did not find any wav files at {self.base_path}, exitting")
+            print(f"Did not find any wav files at {self.base_path}, exiting")
             return False
 
         print(f"Found {len(self._files)} wav files, at {self.base_path}")
@@ -54,10 +54,10 @@ class Core:
             )
 
         if not self._suspicious_files:
-            print(f"Did not find any suspisous wav files at {self.base_path}, exitting")
+            print(f"Did not find any suspicious wav files at {self.base_path}, exiting")
             return False
 
-        print(f"Found {len(self._suspicious_files)} suspscious wav files")
+        print(f"Found {len(self._suspicious_files)} suspicious wav files")
         return True
 
     def is_wav_file_suspicious(self, file: pathlib.Path):
@@ -112,7 +112,7 @@ class Core:
     def base_path(self, base_path: pathlib.Path):
         if not base_path.is_dir():
             raise NotADirectoryError(
-                f"Can not set base path to {base_path}: it does not exsit"
+                f"Can not set base path to {base_path}: it does not exist"
             )
 
         print(f"Setting base path to {base_path}")
@@ -158,7 +158,7 @@ def main():
 
     fixed_suspicious_wav_files = core.fix_suspicious_wav_files()
     if not fixed_suspicious_wav_files:
-        print(f"Failed to fix the suspisous wav files at {core.base_path}, exitting")
+        print(f"Failed to fix the suspicious wav files at {core.base_path}, exiting")
         return
 
     print(f"Successfully fixed {len(core.suspicious_files)} suspicious wav files")
