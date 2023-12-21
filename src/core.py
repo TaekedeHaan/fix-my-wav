@@ -13,10 +13,12 @@ class Core:
         self._files: list[pathlib.Path] = []
         self._suspicious_files: list[pathlib.Path] = []
 
+        self.n_processed_files = 0
         self.suspicious_hex_value = f"{constants.WAVE_FORMAT_EXTENSIBLE:04X}"
         self.new_hex_value = f"{constants.WAVE_FORMAT_PCM:04X}"
 
     def reset(self):
+        self.n_processed_files = 0
         self._files.clear()
         self._suspicious_files.clear()
 
@@ -41,6 +43,7 @@ class Core:
 
     def find_suspicious_wav_files(self):
         self._suspicious_files.clear()
+        self.n_processed_files = 0
 
         if not self._files:
             logger.warning(
@@ -49,6 +52,7 @@ class Core:
             return False
 
         for file in self._files:
+            self.n_processed_files = self.n_processed_files + 1
             if not self.is_wav_file_suspicious(file):
                 continue
 
