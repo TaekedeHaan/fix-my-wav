@@ -17,7 +17,7 @@ class UI:
         label.pack()
 
         ent_directory = tk.Entry(frame)
-        ent_directory.insert(0, self.core.base_path)
+        ent_directory.insert(0, str(self.core.base_path))
         ent_directory.pack(fill=tk.X)
 
         btn_browse = tk.Button(frame, text="Browse", command=self.__update_direcotry)
@@ -54,10 +54,9 @@ class UI:
             print(
                 f"Failed to set path to {self.core.base_path}, caught the following exception: {e}"
             )
-            return
 
-        self.ent_directory.delete(1, tk.END)  # Remove current text in entry
-        self.ent_directory.insert(0, self.core.base_path)  # Insert the 'path'
+        self.ent_directory.delete(0, tk.END)
+        self.ent_directory.insert(0, str(self.core.base_path))
 
     def __find_wavs(self):
         self.core.find_wav_files()

@@ -1,5 +1,4 @@
 import pathlib
-from typing import List
 
 WAV_EXTENSION = "*.wav"
 AUDIO_FORMAT_OFFSET = 20
@@ -10,7 +9,7 @@ WAVE_FORMAT_PCM = 1
 
 def read_hex_value(file: pathlib.Path, offset: int, field_size: int):
     print(f"Opening {file.name} to read its contents")
-    hex_data = []
+    hex_data: list[str] = []
     file_handle = open(file, "rb")
 
     # Ignore the data before the specfied offset
@@ -69,19 +68,17 @@ def set_hex_data(file: pathlib.Path, offset: int, field_size: int, hex_value: st
 class Core:
     def __init__(self):
         self._base_path = pathlib.Path.home() / "Music"
-        self._files = []
-        self._suspicious_files = []
+        self._files: list[pathlib.Path] = []
+        self._suspicious_files: list[pathlib.Path] = []
 
         self.suspicious_hex_value = f"{WAVE_FORMAT_EXTENSIBLE:04X}"
         self.new_hex_value = f"{WAVE_FORMAT_PCM:04X}"
 
     def reset(self):
-        self._base_path = ""
         self._files.clear()
         self._suspicious_files.clear()
 
     def find_wav_files(self):
-        # reset previopus results
         self._suspicious_files.clear()
 
         if not self.base_path.is_dir():
@@ -97,7 +94,6 @@ class Core:
         return True
 
     def find_suspicious_wav_files(self):
-        # reset previopus results
         self._suspicious_files.clear()
 
         if not self._files:
