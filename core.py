@@ -68,48 +68,58 @@ def set_hex_data(file: pathlib.Path, offset: int, field_size: int, hex_value: st
 
 class Core:
     def __init__(self):
-        self.base_path = pathlib.Path.home() / "Music"
-        self.files = []
-        self.suspicious_files = []
+        self._base_path = pathlib.Path.home() / "Music"
+        self._files = []
+        self._suspicious_files = []
 
         self.suspicious_hex_value = f"{WAVE_FORMAT_EXTENSIBLE:04X}"
         self.new_hex_value = f"{WAVE_FORMAT_PCM:04X}"
 
+    def reset(self):
+        self._base_path = ""
+        self._files.clear()
+        self._suspicious_files.clear()
+
     def find_wav_files(self):
-        if not pathlib.Path.is_dir(self.base_path):
+        # reset previopus results
+        self._suspicious_files.clear()
+
+        if not self.base_path.is_dir():
             print("The provided base path {} does not exist")
             return False
 
-        self.files = list(self.base_path.rglob(WAV_EXTENSION))
-        if not self.files:
+        self._files = list(self.base_path.rglob(WAV_EXTENSION))
+        if not self._files:
             print(f"Did not find any wav files at {self.base_path}, exitting")
             return False
 
-        print(f"Found {len(self.files)} wav files, at {self.base_path}")
+        print(f"Found {len(self._files)} wav files, at {self.base_path}")
         return True
 
     def find_suspicious_wav_files(self):
-        self.suspicious_files = []  # reset
-        if not self.files:
+        # reset previopus results
+        self._suspicious_files.clear()
+
+        if not self._files:
             print(
                 "Can not look for suspicious files among files: the files are still empty"
             )
             return False
 
-        for file in self.files:
+        for file in self._files:
             if not self.is_wav_file_suspicious(file):
                 continue
 
-            self.suspicious_files.append(file)
+            self._suspicious_files.append(file)
             print(
                 f"The wav file {file.name} contains the key {WAVE_FORMAT_EXTENSIBLE} at the specified location. Storing the file name..."
             )
 
-        if not self.suspicious_files:
+        if not self._suspicious_files:
             print(f"Did not find any suspisous wav files at {self.base_path}, exitting")
             return False
 
-        print(f"Found {len(self.suspicious_files)} suspscious wav files")
+        print(f"Found {len(self._suspicious_files)} suspscious wav files")
         return True
 
     def is_wav_file_suspicious(self, file: pathlib.Path):
@@ -125,7 +135,7 @@ class Core:
         return True
 
     def fix_suspicious_wav_files(self):
-        if not self.files:
+        if not self._files:
             print("Can not fix suspicious files: first find some suspicious files!")
             return False
 
@@ -133,7 +143,7 @@ class Core:
             f"Will replace {self.suspicious_hex_value} at offset {AUDIO_FORMAT_OFFSET} and field size {AUDIO_FORMAT_FIELD_SIZE} with {self.new_hex_value}"
         )
         overall_success = True
-        for wav_file in self.suspicious_files:
+        for wav_file in self._suspicious_files:
             success = set_hex_data(
                 wav_file,
                 AUDIO_FORMAT_OFFSET,
@@ -153,6 +163,27 @@ class Core:
                 overall_success = False
 
         return overall_success
+
+    @property
+    def base_path(self):
+        return self._base_path
+
+    @base_path.setter
+    def base_path(self, base_path: pathlib.Path):
+        if not base_path.is_dir():
+            print(f"Can not set base path to {base_path}: it does not exsit")
+
+        print(f"Setting base path to {base_path}")
+        self.reset()
+        self._base_path = base_path
+
+    @property
+    def suspicious_files(self):
+        return self._suspicious_files.copy()
+
+    @property
+    def files(self):
+        return self._files.copy()
 
 
 def main():
