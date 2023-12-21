@@ -17,13 +17,17 @@ class Core:
         self._suspicious_files.clear()
 
     def find_wav_files(self):
-        self._suspicious_files.clear()
+        self.reset()
 
+        # The folder itself might have been changed or deleted since setting it
         if not self.base_path.is_dir():
             print("The provided base path {} does not exist")
             return False
 
-        self._files = list(self.base_path.rglob(constants.WAV_EXTENSION))
+        files_generator = self.base_path.rglob(constants.WAV_EXTENSION)
+        for file in files_generator:
+            self._files.append(file)
+
         if not self._files:
             print(f"Did not find any wav files at {self.base_path}, exitting")
             return False
