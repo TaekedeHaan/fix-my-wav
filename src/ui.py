@@ -10,8 +10,8 @@ from src.core import Core
 logger = logging.getLogger(__name__)
 
 FIND_WAVS = "find_wavs"
-FIND_INCOMPATIBVLE_WAVS = "find_incompatible_wavs"
-FIX_INCOMPATIBVLE_WAVS = "fix_incompatible_wavs"
+FIND_INCOMPATIBLE_WAVS = "find_incompatible_wavs"
+FIX_INCOMPATIBLE_WAVS = "fix_incompatible_wavs"
 
 
 class UI:
@@ -19,7 +19,7 @@ class UI:
         self.core = core
 
         # An easy but dirty way to detect whether these have been changes since the last call
-        self.suspicious_files = []
+        self.incompatible_files = []
 
         window = tk.Tk()
 
@@ -160,10 +160,10 @@ class UI:
         if self.is_busy():
             return
 
-        self.threads[FIND_INCOMPATIBVLE_WAVS] = threading.Thread(
-            target=self.core.find_suspicious_wav_files
+        self.threads[FIND_INCOMPATIBLE_WAVS] = threading.Thread(
+            target=self.core.find_incompatible_wav_files
         )
-        self.threads[FIND_INCOMPATIBVLE_WAVS].start()
+        self.threads[FIND_INCOMPATIBLE_WAVS].start()
 
     def _fix_incompatible_wavs(self):
         if self.is_busy():
@@ -175,10 +175,10 @@ class UI:
             return
 
         int_indices = [int(index) for index in indices]
-        self.threads[FIX_INCOMPATIBVLE_WAVS] = threading.Thread(
-            target=self.core.fix_suspicious_wav_files, args=(int_indices,)
+        self.threads[FIX_INCOMPATIBLE_WAVS] = threading.Thread(
+            target=self.core.fix_incompatible_wav_files, args=(int_indices,)
         )
-        self.threads[FIX_INCOMPATIBVLE_WAVS].start()
+        self.threads[FIX_INCOMPATIBLE_WAVS].start()
 
     def _tick(self):
         self.cleanup_threads()
@@ -186,7 +186,7 @@ class UI:
         self._update_status_bar()
 
         # Update list if change was detected
-        if self.suspicious_files != self.core.suspicious_files:
+        if self.incompatible_files != self.core.incompatible_files:
             self._update_tree_view()
 
         # plan next tick
@@ -197,9 +197,9 @@ class UI:
         longest_file_name = 0
         longest_file_path = 0
 
-        self.suspicious_files = self.core.suspicious_files
+        self.incompatible_files = self.core.incompatible_files
         self.tree.delete(*self.tree.get_children())
-        for i, file in enumerate(self.core.suspicious_files):
+        for i, file in enumerate(self.core.incompatible_files):
             self.tree.insert(
                 "",
                 "end",
@@ -230,7 +230,7 @@ class UI:
             return
 
         self.str_status_bar.set(
-            f" Selected {len(self.tree.selection()):,}/{self.core.n_suspicious_files:,} incompatible wav's:"
+            f" Selected {len(self.tree.selection()):,}/{self.core.n_incompatible_files:,} incompatible wav's:"
         )
 
     def cleanup_threads(self):
@@ -252,10 +252,10 @@ class UI:
         return FIND_WAVS in self.threads
 
     def is_find_incompatible_wavs_active(self):
-        return FIND_INCOMPATIBVLE_WAVS in self.threads
+        return FIND_INCOMPATIBLE_WAVS in self.threads
 
     def is_fix_incompatible_wavs_active(self):
-        return FIX_INCOMPATIBVLE_WAVS in self.threads
+        return FIX_INCOMPATIBLE_WAVS in self.threads
 
     def run(self):
         self._tick()

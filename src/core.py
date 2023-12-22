@@ -12,16 +12,16 @@ class Core:
     def __init__(self, base_path: pathlib.Path = pathlib.Path.home()):
         self._base_path = base_path
         self._files: list[pathlib.Path] = []
-        self._suspicious_files: list[pathlib.Path] = []
+        self._incompatible_files: list[pathlib.Path] = []
 
         self.n_processed_files = 0
-        self.suspicious_hex_value = f"{constants.WAVE_FORMAT_EXTENSIBLE:04X}"
+        self.incompatible_hex_value = f"{constants.WAVE_FORMAT_EXTENSIBLE:04X}"
         self.new_hex_value = f"{constants.WAVE_FORMAT_PCM:04X}"
 
     def reset(self):
         self.n_processed_files = 0
         self._files.clear()
-        self._suspicious_files.clear()
+        self._incompatible_files.clear()
 
     def find_wav_files(self):
         self.reset()
@@ -42,34 +42,34 @@ class Core:
         logger.info(f"Found {len(self._files)} wav files, at {self.base_path}")
         return True
 
-    def find_suspicious_wav_files(self):
-        self._suspicious_files.clear()
+    def find_incompatible_wav_files(self):
+        self._incompatible_files.clear()
         self.n_processed_files = 0
 
         if not self._files:
             logger.warning(
-                "Can not look for suspicious files among files: the files are still empty"
+                "Can not look for incompatible files among files: the files are still empty"
             )
             return False
 
         for file in self._files:
             self.n_processed_files = self.n_processed_files + 1
-            if not self.is_wav_file_suspicious(file):
+            if not self.is_wav_file_incompatible(file):
                 continue
 
-            self._suspicious_files.append(file)
+            self._incompatible_files.append(file)
             logger.debug(
                 f"The wav file {file.name} contains the key {constants.WAVE_FORMAT_EXTENSIBLE} at the specified location. Storing the file name..."
             )
 
-        if not self._suspicious_files:
-            logger.info(f"Did not find any suspicious wav files at {self.base_path}")
+        if not self._incompatible_files:
+            logger.info(f"Did not find any incompatible wav files at {self.base_path}")
             return False
 
-        logger.info(f"Found {len(self._suspicious_files)} suspicious wav files")
+        logger.info(f"Found {len(self._incompatible_files)} incompatible wav files")
         return True
 
-    def is_wav_file_suspicious(self, file: pathlib.Path):
+    def is_wav_file_incompatible(self, file: pathlib.Path):
         hex_value = utils.read_hex_value(
             file, constants.AUDIO_FORMAT_OFFSET, constants.AUDIO_FORMAT_FIELD_SIZE
         )
@@ -83,38 +83,38 @@ class Core:
 
         return True
 
-    def fix_suspicious_wav_files(self, indices: Optional[list[int]] = None):
+    def fix_incompatible_wav_files(self, indices: Optional[list[int]] = None):
         if not self._files:
             logger.info(
-                "Can not fix suspicious files: first find some suspicious files!"
+                "Can not fix incompatible files: first find some incompatible files!"
             )
             return False
 
         if indices is None:
-            files = self._suspicious_files
+            files = self._incompatible_files
         else:
             try:
-                files = [self._suspicious_files[i] for i in indices]
+                files = [self._incompatible_files[i] for i in indices]
             except Exception as e:
                 logger.warning(
-                    f"Failed to fix suspicious wav file, indices invalid. Caught the following exception:\n {e}\n\nFor indices\n{indices}"
+                    f"Failed to fix incompatible wav file, indices invalid. Caught the following exception:\n {e}\n\nFor indices\n{indices}"
                 )
                 return False
 
         overall_success = True
         for file in files:
-            success = self.fix_suspicious_wav_file(file)
+            success = self.fix_incompatible_wav_file(file)
             overall_success = overall_success and success
 
         return overall_success
 
-    def fix_suspicious_wav_file(self, file: pathlib.Path):
-        if file not in self._suspicious_files:
+    def fix_incompatible_wav_file(self, file: pathlib.Path):
+        if file not in self._incompatible_files:
             logger.warning(f"Refusing to fix {file.name}: there is nothing to fix!")
             return False
 
         logger.info(
-            f"Will replace {self.suspicious_hex_value} at offset {constants.AUDIO_FORMAT_OFFSET} and field size {constants.AUDIO_FORMAT_FIELD_SIZE} with {self.new_hex_value} for file {file}"
+            f"Will replace {self.incompatible_hex_value} at offset {constants.AUDIO_FORMAT_OFFSET} and field size {constants.AUDIO_FORMAT_FIELD_SIZE} with {self.new_hex_value} for file {file}"
         )
 
         success = utils.set_hex_data(
@@ -128,14 +128,14 @@ class Core:
             return False
 
         # verify whether problem was fixed
-        is_still_suspicious = self.is_wav_file_suspicious(file)
-        if is_still_suspicious:
+        is_still_incompatible = self.is_wav_file_incompatible(file)
+        if is_still_incompatible:
             logger.warning(
-                f"Wav file {file.name} is still suspicious after trying to apply fix"
+                f"Wav file {file.name} is still incompatible after trying to apply fix"
             )
             return False
 
-        self._suspicious_files.remove(file)
+        self._incompatible_files.remove(file)
         return True
 
     @property
@@ -158,16 +158,16 @@ class Core:
         return self._files.copy()
 
     @property
-    def suspicious_files(self):
-        return self._suspicious_files.copy()
+    def incompatible_files(self):
+        return self._incompatible_files.copy()
 
     @property
     def n_files(self):
         return len(self._files)
 
     @property
-    def n_suspicious_files(self):
-        return len(self._suspicious_files)
+    def n_incompatible_files(self):
+        return len(self._incompatible_files)
 
 
 def main():
@@ -186,18 +186,20 @@ def main():
     if not found_wav_files:
         return
 
-    found_suspicious_wav_files = core.find_suspicious_wav_files()
-    if not found_suspicious_wav_files:
+    found_incompatible_wav_files = core.find_incompatible_wav_files()
+    if not found_incompatible_wav_files:
         return
 
-    fixed_suspicious_wav_files = core.fix_suspicious_wav_files()
-    if not fixed_suspicious_wav_files:
+    fixed_incompatible_wav_files = core.fix_incompatible_wav_files()
+    if not fixed_incompatible_wav_files:
         logger.info(
-            f"Failed to fix the suspicious wav files at {core.base_path}, exiting"
+            f"Failed to fix the incompatible wav files at {core.base_path}, exiting"
         )
         return
 
-    logger.info(f"Successfully fixed {len(core.suspicious_files)} suspicious wav files")
+    logger.info(
+        f"Successfully fixed {len(core.incompatible_files)} incompatible wav files"
+    )
 
 
 if __name__ == "__main__":
