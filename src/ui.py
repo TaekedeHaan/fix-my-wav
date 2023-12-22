@@ -19,71 +19,18 @@ class UI:
 
         window = tk.Tk()
 
-        # browse
-        frm_browse = tk.Frame(window)
-
-        label = ttk.Label(frm_browse, text="Configure")
-        label.pack(side=tk.TOP, anchor=tk.NW)
-
-        ent_directory = tk.Entry(frm_browse)
-        ent_directory.insert(0, str(self.core.base_path))
-
-        btn_browse = tk.Button(
-            frm_browse, text="Browse", command=self.__update_directory
-        )
-
-        ent_directory.pack(fill=tk.X, side=tk.LEFT, expand=True)
-        btn_browse.pack(side=tk.LEFT)
-
-        ### execute
-        frm_execute = tk.Frame(window)
-
-        label = ttk.Label(frm_execute, text="Execute")
-        label.pack(side=tk.TOP, anchor=tk.NW)
-
-        # Find wavs
-        frm_find_wavs = tk.Frame(frm_execute)
-        btn_find_wav = tk.Button(
-            frm_find_wavs, text="Find wav's", command=self.__find_wavs
-        )
-        btn_find_wav.pack(side=tk.LEFT)
-
-        self.str_var_wavs = tk.StringVar()
-        self.str_var_wavs.set(f"Found {self.core.n_files} files")
-        lbl_wavs = tk.Label(frm_find_wavs, textvariable=self.str_var_wavs)
-        lbl_wavs.pack(side=tk.LEFT)
-
-        frm_find_wavs.pack(fill=tk.X, side=tk.LEFT)
-
-        # find incompatible wavs
-        frm_find_incompatible_wavs = tk.Frame(frm_execute)
-
-        btn_find_incompatible_wav = tk.Button(
-            frm_find_incompatible_wavs,
-            text="Find incompatible wav's",
-            command=self.__find_incompatible_wavs,
-        )
-        btn_find_incompatible_wav.pack(side=tk.LEFT)
-
-        self.str_var_analyzed_wavs = tk.StringVar()
-        lbl_analyzed_wavs = tk.Label(
-            frm_find_incompatible_wavs, textvariable=self.str_var_analyzed_wavs
-        )
-        lbl_analyzed_wavs.pack(side=tk.LEFT)
-        frm_find_incompatible_wavs.pack(fill=tk.X, side=tk.LEFT)
-
         # list incompatible wavs
-        frm_list_incompatible_wavs = tk.Frame(window)
+        frm_list_incompatible_wavs = ttk.Frame(window)
 
         self.str_var_suspicious_wavs = tk.StringVar()
-        lbl_suspicious_wavs = tk.Label(
+        lbl_suspicious_wavs = ttk.Label(
             frm_list_incompatible_wavs,
             textvariable=self.str_var_suspicious_wavs,
         )
         lbl_suspicious_wavs.pack(side=tk.TOP, anchor=tk.NW)
 
         # tree view
-        frm_tree_view = tk.Frame(frm_list_incompatible_wavs)
+        frm_tree_view = ttk.Frame(frm_list_incompatible_wavs)
         tree = ttk.Treeview(
             frm_tree_view,
             columns=("file name", "path"),
@@ -109,9 +56,55 @@ class UI:
         tree.pack(side=tk.TOP, fill=tk.X)
         frm_tree_view.pack(fill=tk.X)
 
-        # Fix
-        frm_fix_incompatible_wavs = tk.Frame(window)
-        btn_fix_incompatible_wav = tk.Button(
+        # browse
+        frm_browse = ttk.Frame(window)
+        ent_directory = ttk.Entry(frm_browse)
+        ent_directory.insert(0, str(self.core.base_path))
+
+        btn_browse = ttk.Button(
+            frm_browse, text="Browse", command=self.__update_directory
+        )
+
+        ent_directory.pack(fill=tk.X, side=tk.LEFT, expand=True)
+        btn_browse.pack(side=tk.LEFT)
+
+        ### execute
+        frm_execute = ttk.Frame(window)
+
+        # Find wavs
+        frm_find_wavs = ttk.Frame(frm_execute)
+        btn_find_wav = ttk.Button(
+            frm_find_wavs, text="Find wav's", command=self.__find_wavs
+        )
+        btn_find_wav.pack(side=tk.LEFT)
+
+        self.str_var_wavs = tk.StringVar()
+        self.str_var_wavs.set(f"Found {self.core.n_files} files")
+        lbl_wavs = ttk.Label(frm_find_wavs, textvariable=self.str_var_wavs)
+        lbl_wavs.pack(side=tk.LEFT)
+
+        frm_find_wavs.pack(fill=tk.X, side=tk.LEFT)
+
+        # find incompatible wavs
+        frm_find_incompatible_wavs = ttk.Frame(frm_execute)
+
+        btn_find_incompatible_wav = ttk.Button(
+            frm_find_incompatible_wavs,
+            text="Find incompatible wav's",
+            command=self.__find_incompatible_wavs,
+        )
+        btn_find_incompatible_wav.pack(side=tk.LEFT)
+
+        self.str_var_analyzed_wavs = tk.StringVar()
+        lbl_analyzed_wavs = ttk.Label(
+            frm_find_incompatible_wavs, textvariable=self.str_var_analyzed_wavs
+        )
+        lbl_analyzed_wavs.pack(side=tk.LEFT)
+        frm_find_incompatible_wavs.pack(fill=tk.X, side=tk.LEFT)
+
+        # Fix boken wavs
+        frm_fix_incompatible_wavs = ttk.Frame(window)
+        btn_fix_incompatible_wav = ttk.Button(
             frm_fix_incompatible_wavs,
             text="Fix incompatible wav's",
             command=self.__fix_incompatible_wavs,
@@ -119,16 +112,16 @@ class UI:
         btn_fix_incompatible_wav.pack(side=tk.LEFT)
 
         self.str_var_selected_wavs = tk.StringVar()
-        lbl_selected_wavs = tk.Label(
+        lbl_selected_wavs = ttk.Label(
             frm_fix_incompatible_wavs,
             textvariable=self.str_var_selected_wavs,
         )
         lbl_selected_wavs.pack(side=tk.TOP, anchor=tk.NW)
 
         # Pack main frames
+        frm_list_incompatible_wavs.pack(fill=tk.X)
         frm_browse.pack(fill=tk.X)
         frm_execute.pack(fill=tk.X)
-        frm_list_incompatible_wavs.pack(fill=tk.X)
         frm_fix_incompatible_wavs.pack(fill=tk.X)
 
         # set members
