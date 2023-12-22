@@ -26,13 +26,6 @@ class UI:
         # list incompatible wavs
         frm_list_incompatible_wavs = ttk.Frame(window)
 
-        self.str_var_suspicious_wavs = tk.StringVar()
-        lbl_suspicious_wavs = ttk.Label(
-            frm_list_incompatible_wavs,
-            textvariable=self.str_var_suspicious_wavs,
-        )
-        lbl_suspicious_wavs.pack(side=tk.TOP, anchor=tk.NW)
-
         # tree view
         frm_tree_view = ttk.Frame(frm_list_incompatible_wavs)
         tree = ttk.Treeview(
@@ -75,15 +68,6 @@ class UI:
         ### execute
         frm_execute = ttk.Frame(window)
 
-        # Find wavs
-        frm_find_wavs = ttk.Frame(frm_execute)
-        btn_find_wav = ttk.Button(
-            frm_find_wavs, text="Find wav's", command=self._find_wavs
-        )
-        btn_find_wav.pack(side=tk.LEFT)
-
-        frm_find_wavs.pack(fill=tk.X, side=tk.LEFT)
-
         # find incompatible wavs
         frm_find_incompatible_wavs = ttk.Frame(frm_execute)
 
@@ -103,13 +87,6 @@ class UI:
             command=self._fix_incompatible_wavs,
         )
         btn_fix_incompatible_wav.pack(side=tk.LEFT)
-
-        self.str_var_selected_wavs = tk.StringVar()
-        lbl_selected_wavs = ttk.Label(
-            frm_fix_incompatible_wavs,
-            textvariable=self.str_var_selected_wavs,
-        )
-        lbl_selected_wavs.pack(side=tk.TOP, anchor=tk.NW)
 
         # status bar
         self.str_status_bar = tk.StringVar()
@@ -138,6 +115,9 @@ class UI:
         self.frequency = 50
         self.update_rate_ms = round(1000 / self.frequency)
 
+        # start
+        self._find_wavs()
+
     def _update_directory(self):
         if self.is_busy():
             return
@@ -150,11 +130,16 @@ class UI:
         )
 
         if not directory:
-            logger.debug("No directory selected")
+            logger.debug("No directory selected: nothing to do here")
+            return
+
+        path = pathlib.Path(directory)
+        if self.core.base_path == path:
+            logger.debug("Same directory selected: nothing to do here")
             return
 
         try:
-            self.core.base_path = pathlib.Path(directory)
+            self.core.base_path = path
         except NotADirectoryError as e:
             logger.warning(
                 f"Failed to set path to {self.core.base_path}, caught the following exception: {e}"
@@ -197,13 +182,6 @@ class UI:
 
     def _tick(self):
         self.cleanup_threads()
-        self.str_var_suspicious_wavs.set(
-            f" Found {self.core.n_suspicious_files:,}/{self.core.n_files:,} incompatible wav's:"
-        )
-
-        self.str_var_selected_wavs.set(
-            f"Selected {len(self.tree.selection()):,}/{self.core.n_suspicious_files:,} files"
-        )
 
         self._update_status_bar()
 
@@ -252,7 +230,7 @@ class UI:
             return
 
         self.str_status_bar.set(
-            f" Found {self.core.n_suspicious_files:,}/{self.core.n_files:,} incompatible wav's:"
+            f" Selected {len(self.tree.selection()):,}/{self.core.n_suspicious_files:,} incompatible wav's:"
         )
 
     def cleanup_threads(self):
@@ -262,6 +240,10 @@ class UI:
         for action in finished_actions:
             logger.info(f"Completed {action}")
             del self.threads[action]
+
+        # Automatically start a find incompatible wavs action once we have a list of all wavs
+        if FIND_WAVS in finished_actions:
+            self._find_incompatible_wavs()
 
     def is_busy(self):
         return len(self.threads) > 0
