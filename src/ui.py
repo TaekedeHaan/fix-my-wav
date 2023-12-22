@@ -22,6 +22,22 @@ class UI:
         self.incompatible_files = []
 
         window = tk.Tk()
+        image_subsample = 20
+
+        # Load resources
+        path_resources = pathlib.Path().absolute() / "resources"
+        path_img_file = path_resources / "sound_black.png"
+        path_img_repair = path_resources / "repair_black.png"
+        self.img_file = tk.PhotoImage(file=path_img_file).subsample(
+            image_subsample, image_subsample
+        )
+        self.img_repair = tk.PhotoImage(file=path_img_repair).subsample(
+            image_subsample, image_subsample
+        )
+
+        # window layout
+        window.iconphoto(False, self.img_file)
+        window.title("FixMyWav")
 
         # list incompatible wavs
         frm_list_incompatible_wavs = ttk.Frame(window)
@@ -59,7 +75,9 @@ class UI:
         ent_directory.insert(0, str(self.core.base_path))
 
         btn_browse = ttk.Button(
-            frm_browse, text="Browse", command=self._update_directory
+            frm_browse,
+            text="Browse",
+            command=self._update_directory,
         )
 
         ent_directory.pack(fill=tk.X, side=tk.LEFT, expand=True)
@@ -80,9 +98,8 @@ class UI:
         frm_find_incompatible_wavs.pack(fill=tk.X, side=tk.LEFT)
 
         # Fix boken wavs
-        frm_fix_incompatible_wavs = ttk.Frame(window)
         btn_fix_incompatible_wav = ttk.Button(
-            frm_fix_incompatible_wavs,
+            frm_find_incompatible_wavs,
             text="Fix incompatible wav's",
             command=self._fix_incompatible_wavs,
         )
@@ -101,7 +118,6 @@ class UI:
         frm_list_incompatible_wavs.pack(fill=tk.X)
         frm_browse.pack(fill=tk.X)
         frm_execute.pack(fill=tk.X)
-        frm_fix_incompatible_wavs.pack(fill=tk.X)
 
         # set members
         self.window = window
