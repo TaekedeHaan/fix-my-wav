@@ -62,7 +62,7 @@ class UI:
         ent_directory.insert(0, str(self.core.base_path))
 
         btn_browse = ttk.Button(
-            frm_browse, text="Browse", command=self.__update_directory
+            frm_browse, text="Browse", command=self._update_directory
         )
 
         ent_directory.pack(fill=tk.X, side=tk.LEFT, expand=True)
@@ -74,7 +74,7 @@ class UI:
         # Find wavs
         frm_find_wavs = ttk.Frame(frm_execute)
         btn_find_wav = ttk.Button(
-            frm_find_wavs, text="Find wav's", command=self.__find_wavs
+            frm_find_wavs, text="Find wav's", command=self._find_wavs
         )
         btn_find_wav.pack(side=tk.LEFT)
 
@@ -91,7 +91,7 @@ class UI:
         btn_find_incompatible_wav = ttk.Button(
             frm_find_incompatible_wavs,
             text="Find incompatible wav's",
-            command=self.__find_incompatible_wavs,
+            command=self._find_incompatible_wavs,
         )
         btn_find_incompatible_wav.pack(side=tk.LEFT)
 
@@ -107,7 +107,7 @@ class UI:
         btn_fix_incompatible_wav = ttk.Button(
             frm_fix_incompatible_wavs,
             text="Fix incompatible wav's",
-            command=self.__fix_incompatible_wavs,
+            command=self._fix_incompatible_wavs,
         )
         btn_fix_incompatible_wav.pack(side=tk.LEFT)
 
@@ -138,7 +138,7 @@ class UI:
         self.frequency = 50
         self.update_rate_ms = round(1000 / self.frequency)
 
-    def __update_directory(self):
+    def _update_directory(self):
         if self.is_busy():
             return
 
@@ -162,9 +162,9 @@ class UI:
 
         self.ent_directory.delete(0, tk.END)
         self.ent_directory.insert(0, str(self.core.base_path))
-        self.__find_wavs()
+        self._find_wavs()
 
-    def __tick(self):
+    def _tick(self):
         self.str_var_wavs.set(f"Found {self.core.n_files:,} wav files")
         self.str_var_analyzed_wavs.set(
             f"Analyzed {self.core.n_processed_files:,}/{self.core.n_files:,} files"
@@ -179,12 +179,12 @@ class UI:
 
         # Update list if change was detected
         if self.suspicious_files != self.core.suspicious_files:
-            self.__update_tree_view()
+            self._update_tree_view()
 
         # plan next tick
-        self.window.after(self.update_rate_ms, self.__tick)
+        self.window.after(self.update_rate_ms, self._tick)
 
-    def __update_tree_view(self):
+    def _update_tree_view(self):
         factor = 6
         longest_file_name = 0
         longest_file_path = 0
@@ -206,14 +206,14 @@ class UI:
         self.tree.column("#1", minwidth=longest_file_name * factor)
         self.tree.column("#2", minwidth=longest_file_path * factor)
 
-    def __find_wavs(self):
+    def _find_wavs(self):
         if self.is_busy():
             return
 
         self.find_wavs_thread = threading.Thread(target=self.core.find_wav_files)
         self.find_wavs_thread.start()
 
-    def __find_incompatible_wavs(self):
+    def _find_incompatible_wavs(self):
         if self.is_busy():
             return
 
@@ -248,7 +248,7 @@ class UI:
             and self.fix_incompatible_wavs_thread.is_alive()
         )
 
-    def __fix_incompatible_wavs(self):
+    def _fix_incompatible_wavs(self):
         if self.is_busy():
             return
 
@@ -264,7 +264,7 @@ class UI:
         pass
 
     def run(self):
-        self.__tick()
+        self._tick()
         self.window.mainloop()
 
     def exit(self):
