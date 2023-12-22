@@ -9,6 +9,10 @@ from src.core import Core
 
 logger = logging.getLogger(__name__)
 
+FIND_WAVS = "find_wavs"
+FIND_INCOMPATIBVLE_WAVS = "find_incompatible_wavs"
+FIX_INCOMPATIBVLE_WAVS = "fix_incompatible_wavs"
+
 
 class UI:
     def __init__(self, core: Core):
@@ -78,11 +82,6 @@ class UI:
         )
         btn_find_wav.pack(side=tk.LEFT)
 
-        self.str_var_wavs = tk.StringVar()
-        self.str_var_wavs.set(f"Found {self.core.n_files} files")
-        lbl_wavs = ttk.Label(frm_find_wavs, textvariable=self.str_var_wavs)
-        lbl_wavs.pack(side=tk.LEFT)
-
         frm_find_wavs.pack(fill=tk.X, side=tk.LEFT)
 
         # find incompatible wavs
@@ -94,12 +93,6 @@ class UI:
             command=self._find_incompatible_wavs,
         )
         btn_find_incompatible_wav.pack(side=tk.LEFT)
-
-        self.str_var_analyzed_wavs = tk.StringVar()
-        lbl_analyzed_wavs = ttk.Label(
-            frm_find_incompatible_wavs, textvariable=self.str_var_analyzed_wavs
-        )
-        lbl_analyzed_wavs.pack(side=tk.LEFT)
         frm_find_incompatible_wavs.pack(fill=tk.X, side=tk.LEFT)
 
         # Fix boken wavs
@@ -118,6 +111,15 @@ class UI:
         )
         lbl_selected_wavs.pack(side=tk.TOP, anchor=tk.NW)
 
+        # status bar
+        self.str_status_bar = tk.StringVar()
+        lbl_status = ttk.Label(
+            window,
+            anchor=tk.W,
+            textvariable=self.str_status_bar,
+        )
+        lbl_status.pack(fill=tk.X, side=tk.BOTTOM)
+
         # Pack main frames
         frm_list_incompatible_wavs.pack(fill=tk.X)
         frm_browse.pack(fill=tk.X)
@@ -130,9 +132,7 @@ class UI:
         self.tree = tree
 
         # Threads
-        self.find_wavs_thread = None
-        self.find_incompatible_wavs_thread = None
-        self.fix_incompatible_wavs_thread = None
+        self.threads: dict[str, threading.Thread] = {}
 
         # settings
         self.frequency = 50
@@ -168,17 +168,17 @@ class UI:
         if self.is_busy():
             return
 
-        self.find_wavs_thread = threading.Thread(target=self.core.find_wav_files)
-        self.find_wavs_thread.start()
+        self.threads[FIND_WAVS] = threading.Thread(target=self.core.find_wav_files)
+        self.threads[FIND_WAVS].start()
 
     def _find_incompatible_wavs(self):
         if self.is_busy():
             return
 
-        self.find_incompatible_wavs_thread = threading.Thread(
+        self.threads[FIND_INCOMPATIBVLE_WAVS] = threading.Thread(
             target=self.core.find_suspicious_wav_files
         )
-        self.find_incompatible_wavs_thread.start()
+        self.threads[FIND_INCOMPATIBVLE_WAVS].start()
 
     def _fix_incompatible_wavs(self):
         if self.is_busy():
@@ -190,17 +190,13 @@ class UI:
             return
 
         int_indices = [int(index) for index in indices]
-        self.fix_incompatible_wavs_thread = threading.Thread(
+        self.threads[FIX_INCOMPATIBVLE_WAVS] = threading.Thread(
             target=self.core.fix_suspicious_wav_files, args=(int_indices,)
         )
-        self.fix_incompatible_wavs_thread.start()
-        pass
+        self.threads[FIX_INCOMPATIBVLE_WAVS].start()
 
     def _tick(self):
-        self.str_var_wavs.set(f"Found {self.core.n_files:,} wav files")
-        self.str_var_analyzed_wavs.set(
-            f"Analyzed {self.core.n_processed_files:,}/{self.core.n_files:,} files"
-        )
+        self.cleanup_threads()
         self.str_var_suspicious_wavs.set(
             f" Found {self.core.n_suspicious_files:,}/{self.core.n_files:,} incompatible wav's:"
         )
@@ -208,6 +204,8 @@ class UI:
         self.str_var_selected_wavs.set(
             f"Selected {len(self.tree.selection()):,}/{self.core.n_suspicious_files:,} files"
         )
+
+        self._update_status_bar()
 
         # Update list if change was detected
         if self.suspicious_files != self.core.suspicious_files:
@@ -238,31 +236,44 @@ class UI:
         self.tree.column("#1", minwidth=longest_file_name * factor)
         self.tree.column("#2", minwidth=longest_file_path * factor)
 
-    def is_busy(self):
+    def _update_status_bar(self):
         if self.is_find_wavs_active():
-            logger.info("A find wavs action is active")
-            return True
+            self.str_status_bar.set(f"Found {self.core.n_files:,} wav files")
+            return
 
         if self.is_find_incompatible_wavs_active():
-            logger.info("A find incompatible wavs action is busy")
-            return True
+            self.str_status_bar.set(
+                f"Analyzed {self.core.n_processed_files:,}/{self.core.n_files:,} files"
+            )
+            return
 
-        return False
+        if self.is_fix_incompatible_wavs_active():
+            self.str_status_bar.set(f"Fixing {len(self.tree.selection()):,} files")
+            return
+
+        self.str_status_bar.set(
+            f" Found {self.core.n_suspicious_files:,}/{self.core.n_files:,} incompatible wav's:"
+        )
+
+    def cleanup_threads(self):
+        finished_actions = [
+            action for action, thread in self.threads.items() if not thread.is_alive()
+        ]
+        for action in finished_actions:
+            logger.info(f"Completed {action}")
+            del self.threads[action]
+
+    def is_busy(self):
+        return len(self.threads) > 0
 
     def is_find_wavs_active(self):
-        return self.find_wavs_thread is not None and self.find_wavs_thread.is_alive()
+        return FIND_WAVS in self.threads
 
     def is_find_incompatible_wavs_active(self):
-        return (
-            self.find_incompatible_wavs_thread is not None
-            and self.find_incompatible_wavs_thread.is_alive()
-        )
+        return FIND_INCOMPATIBVLE_WAVS in self.threads
 
     def is_fix_incompatible_wavs_active(self):
-        return (
-            self.fix_incompatible_wavs_thread is not None
-            and self.fix_incompatible_wavs_thread.is_alive()
-        )
+        return FIX_INCOMPATIBVLE_WAVS in self.threads
 
     def run(self):
         self._tick()
