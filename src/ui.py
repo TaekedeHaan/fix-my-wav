@@ -135,8 +135,15 @@ class UI:
 
     def __update_directory(self):
         directory = filedialog.askdirectory(
-            initialdir=self.core.base_path, mustexist=True
+            parent=self.window,
+            title="Select a directory",
+            initialdir=self.core.base_path,
+            mustexist=True,
         )
+
+        if not directory:
+            logger.debug("No directory selected")
+            return
 
         try:
             self.core.base_path = pathlib.Path(directory)
