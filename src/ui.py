@@ -164,6 +164,38 @@ class UI:
         self.ent_directory.insert(0, str(self.core.base_path))
         self._find_wavs()
 
+    def _find_wavs(self):
+        if self.is_busy():
+            return
+
+        self.find_wavs_thread = threading.Thread(target=self.core.find_wav_files)
+        self.find_wavs_thread.start()
+
+    def _find_incompatible_wavs(self):
+        if self.is_busy():
+            return
+
+        self.find_incompatible_wavs_thread = threading.Thread(
+            target=self.core.find_suspicious_wav_files
+        )
+        self.find_incompatible_wavs_thread.start()
+
+    def _fix_incompatible_wavs(self):
+        if self.is_busy():
+            return
+
+        indices = self.tree.selection()
+        if not indices:
+            logger.info("No files selected")
+            return
+
+        int_indices = [int(index) for index in indices]
+        self.fix_incompatible_wavs_thread = threading.Thread(
+            target=self.core.fix_suspicious_wav_files, args=(int_indices,)
+        )
+        self.fix_incompatible_wavs_thread.start()
+        pass
+
     def _tick(self):
         self.str_var_wavs.set(f"Found {self.core.n_files:,} wav files")
         self.str_var_analyzed_wavs.set(
@@ -206,22 +238,6 @@ class UI:
         self.tree.column("#1", minwidth=longest_file_name * factor)
         self.tree.column("#2", minwidth=longest_file_path * factor)
 
-    def _find_wavs(self):
-        if self.is_busy():
-            return
-
-        self.find_wavs_thread = threading.Thread(target=self.core.find_wav_files)
-        self.find_wavs_thread.start()
-
-    def _find_incompatible_wavs(self):
-        if self.is_busy():
-            return
-
-        self.find_incompatible_wavs_thread = threading.Thread(
-            target=self.core.find_suspicious_wav_files
-        )
-        self.find_incompatible_wavs_thread.start()
-
     def is_busy(self):
         if self.is_find_wavs_active():
             logger.info("A find wavs action is active")
@@ -247,21 +263,6 @@ class UI:
             self.fix_incompatible_wavs_thread is not None
             and self.fix_incompatible_wavs_thread.is_alive()
         )
-
-    def _fix_incompatible_wavs(self):
-        if self.is_busy():
-            return
-
-        indices = self.tree.selection()
-        if not indices:
-            logger.info("No files selected")
-
-        int_indices = [int(index) for index in indices]
-        self.fix_incompatible_wavs_thread = threading.Thread(
-            target=self.core.fix_suspicious_wav_files, args=(int_indices,)
-        )
-        self.fix_incompatible_wavs_thread.start()
-        pass
 
     def run(self):
         self._tick()
