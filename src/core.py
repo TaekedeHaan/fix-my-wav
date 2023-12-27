@@ -1,6 +1,6 @@
 import pathlib
 import logging
-from typing import Optional
+from typing import Callable
 
 from src import constants
 from src import utils
@@ -68,6 +68,9 @@ class WavFixer:
         self.incompatible_hex_value = f"{constants.WAVE_FORMAT_EXTENSIBLE:04X}"
         self.new_hex_value = f"{constants.WAVE_FORMAT_PCM:04X}"
 
+        self.cb_found_incompatible_file: Callable[[pathlib.Path], None] | None = None
+        self.cb_fixed_incompatible_file: Callable[[pathlib.Path], None] | None = None
+
     def reset(self):
         self.n_processed_files = 0
         self._incompatible_files.clear()
@@ -92,6 +95,9 @@ class WavFixer:
                 f"The wav file {file.name} contains the key {constants.WAVE_FORMAT_EXTENSIBLE} at the specified location. Storing the file name..."
             )
 
+            if self.cb_found_incompatible_file:
+                self.cb_found_incompatible_file(file)
+
         if not self._incompatible_files:
             logger.info(f"Did not find any incompatible wav files")
             return False
@@ -113,27 +119,29 @@ class WavFixer:
 
         return True
 
-    def fix_incompatible_wav_files(self, indices: Optional[list[int]] = None):
+    def fix_incompatible_wav_files(self, files: list[pathlib.Path] | None = None):
         if not self._incompatible_files:
             logger.info(
                 "Can not fix incompatible files: first find some incompatible files!"
             )
             return False
 
-        if indices is None:
+        if files is None:
             files = self._incompatible_files
-        else:
-            try:
-                files = [self._incompatible_files[i] for i in indices]
-            except Exception as e:
+
+        for file in files:
+            if file not in self._incompatible_files:
                 logger.warning(
-                    f"Failed to fix incompatible wav file, indices invalid. Caught the following exception:\n {e}\n\nFor indices\n{indices}"
+                    f"Failed to fix incompatible wav file. The file {file} is unknown"
                 )
                 return False
 
         overall_success = True
         for file in files:
             success = self.fix_incompatible_wav_file(file)
+            if success and self.cb_fixed_incompatible_file:
+                self.cb_fixed_incompatible_file(file)
+
             overall_success = overall_success and success
 
         return overall_success

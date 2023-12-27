@@ -18,9 +18,8 @@ class UI:
     def __init__(self, wav_finder: WavFinder, wav_fixer: WavFixer):
         self.wav_finder = wav_finder
         self.wav_fixer = wav_fixer
-
-        # An easy but dirty way to detect whether these have been changes since the last call
-        self.incompatible_files = []
+        self.wav_fixer.cb_found_incompatible_file = self._found_incompatible_file
+        self.wav_fixer.cb_fixed_incompatible_file = self._fixed_incompatible_file
 
         window = tk.Tk()
         image_subsample = 20
@@ -67,6 +66,9 @@ class UI:
         tree.column("#2", anchor=tk.NW)
         tree.heading("#2", text="Path")
 
+        tree.tag_configure("incompatible", background="red")
+        tree.tag_configure("fixed", background="green")
+
         tree.pack(side=tk.TOP, fill=tk.X)
         frm_tree_view.pack(fill=tk.X)
 
@@ -96,7 +98,6 @@ class UI:
             command=self._find_incompatible_wavs,
         )
         btn_find_incompatible_wav.pack(side=tk.LEFT)
-        frm_find_incompatible_wavs.pack(fill=tk.X, side=tk.LEFT)
 
         # Fix boken wavs
         btn_fix_incompatible_wav = ttk.Button(
@@ -105,6 +106,7 @@ class UI:
             command=self._fix_incompatible_wavs,
         )
         btn_fix_incompatible_wav.pack(side=tk.LEFT)
+        frm_find_incompatible_wavs.pack(fill=tk.X)
 
         # status bar
         self.str_status_bar = tk.StringVar()
@@ -170,6 +172,8 @@ class UI:
         if self.is_busy():
             return
 
+        self._clear_tree_view()
+
         self.threads[FIND_WAVS] = threading.Thread(
             target=self.wav_finder.find_wav_files
         )
@@ -191,12 +195,22 @@ class UI:
 
         indices = self.tree.selection()
         if not indices:
-            logger.info("No files selected")
+            logger.info("No items selected")
             return
 
-        int_indices = [int(index) for index in indices]
+        items = [self.tree.item(index) for index in indices]
+        incompatible_items = [item for item in items if "incompatible" in item["tags"]]
+        if not incompatible_items:
+            logger.info("No incompatible items selected")
+            return
+
+        files = [
+            pathlib.Path(item["values"][1]) / item["values"][0]
+            for item in incompatible_items
+        ]
+
         self.threads[FIX_INCOMPATIBLE_WAVS] = threading.Thread(
-            target=self.wav_fixer.fix_incompatible_wav_files, args=(int_indices,)
+            target=self.wav_fixer.fix_incompatible_wav_files, args=(files,)
         )
         self.threads[FIX_INCOMPATIBLE_WAVS].start()
 
@@ -206,52 +220,131 @@ class UI:
         self._update_status_bar()
 
         # Update list if change was detected
-        if self.incompatible_files != self.wav_fixer.incompatible_files:
-            self._update_tree_view()
+        self._update_tree_view_items()
 
         # plan next tick
         self.window.after(self.update_rate_ms, self._tick)
 
-    def _update_tree_view(self):
+    def _clear_tree_view(self):
+        logger.debug("Clearing tree")
+        children = self.tree.get_children()
+        self.tree.delete(*children)
+
+    def _update_tree_view_items(self):
+        items_per_tick = 500
+
+        # determine tree size
+        children = self.tree.get_children()
+        n_tree = len(children)
+
+        if self.wav_finder.n_files == n_tree:
+            return
+
+        if self.wav_finder.n_files < len(children):
+            logger.warning(
+                f"Something is going wrong as the tree of {n_tree} is longer than the files {self.wav_finder.n_files}"
+            )
+            self._clear_tree_view()
+
+        new_files = self.wav_finder.files[n_tree::]
+
+        # insert new items
+        for i, file in enumerate(new_files):
+            iid = i + n_tree
+            self.tree.insert(
+                "",
+                "end",
+                text=str(iid),
+                iid=iid,
+                values=(file.name, file.parent),
+            )
+
+            if i > items_per_tick:
+                break
+
+    def _get_tree_view_item(self, file: pathlib.Path):
+        file_name = file.name
+        file_path = file.parent
+
+        children = self.tree.get_children("")
+        for item in children:
+            values = self.tree.item(item, "values")
+            if not values:
+                logger.warning("Tree contains items which are empty")
+                continue
+            if len(values) < 2:
+                logger.warning("Tree contains items with wrong number of values")
+                continue
+
+            item_name = values[0]
+            item_path = values[1]
+            if file_name == item_name and str(file_path) == item_path:
+                return item
+
+        return None
+
+    def _found_incompatible_file(self, file: pathlib.Path):
+        logger.info("Found incompatible wav is called")
+
+        item = self._get_tree_view_item(file)
+        if item is None:
+            # This is possible if we find a file while still adding the items to the tree view, we need to add some memory such that it can be added later
+            logger.error(f"Failed to find item matching to incompatible {file}")
+            return
+
+        self.tree.item(item, tags=("incompatible",))
+        self.tree.move(item, "", 0)
+
+    def _fixed_incompatible_file(self, file: pathlib.Path):
+        logger.info("Fixed incompatible wav is called")
+        item = self._get_tree_view_item(file)
+        if item is None:
+            # This is possible if we find a file while still adding the items to the tree view, we need to add some memory such that it can be added later
+            logger.error(f"Failed to find item matching to fixed {file}")
+            return
+
+        self.tree.item(item, tags=("fixed",))
+
+    def _update_tree_column_width(self, iids: list[int] | None = None):
+        # TODO: Too slow
         factor = 6
         longest_file_name = 0
         longest_file_path = 0
 
-        self.incompatible_files = self.wav_fixer.incompatible_files
-        self.tree.delete(*self.tree.get_children())
-        for i, file in enumerate(self.wav_fixer.incompatible_files):
-            self.tree.insert(
-                "",
-                "end",
-                text=str(i),
-                iid=i,
-                values=(file.name, file.parent),
-            )
+        iids = iids if iids is not None else []
+        for iid in iids:
+            values = self.tree.item(iid)["values"]
+            longest_file_name = max(len(values[0]), longest_file_name)
+            longest_file_path = max(len(values[1]), longest_file_path)
 
-            longest_file_name = max(len(file.name), longest_file_name)
-            longest_file_path = max(len(str(file.parent)), longest_file_path)
+        column = self.tree.column("#1")
+        old_width = column["minwidth"] if column else 0
+        new_width = longest_file_name * factor
+        if new_width > old_width:
+            self.tree.column("#1", minwidth=new_width)
 
-        self.tree.column("#1", minwidth=longest_file_name * factor)
-        self.tree.column("#2", minwidth=longest_file_path * factor)
+        column = self.tree.column("#2")
+        old_width = column["minwidth"] if column else 0
+        new_width = longest_file_path * factor
+        if new_width > old_width:
+            self.tree.column("#2", minwidth=new_width)
 
     def _update_status_bar(self):
         if self.is_find_wavs_active():
-            self.str_status_bar.set(f"Found {self.wav_finder.n_files:,} wav files")
+            self.str_status_bar.set(f"Found {self.wav_finder.n_files:,} wav file(s)")
             return
 
         if self.is_find_incompatible_wavs_active():
             self.str_status_bar.set(
-                f"Analyzed {self.wav_fixer.n_processed_files:,}/{self.wav_finder.n_files:,} files"
+                f"Analyzed {self.wav_fixer.n_processed_files:,}/{self.wav_finder.n_files:,} file(s)"
             )
             return
 
         if self.is_fix_incompatible_wavs_active():
-            self.str_status_bar.set(f"Fixing {len(self.tree.selection()):,} files")
+            self.str_status_bar.set(f"Fixing {len(self.tree.selection()):,} file(s)")
             return
 
-        self.str_status_bar.set(
-            f" Selected {len(self.tree.selection()):,}/{self.wav_fixer.n_incompatible_files:,} incompatible wav's:"
-        )
+        self.str_status_bar.set(f" Selected {len(self.tree.selection()):,} file(s)")
 
     def cleanup_threads(self):
         finished_actions = [
