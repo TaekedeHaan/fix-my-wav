@@ -5,7 +5,7 @@ import threading
 from tkinter import filedialog
 import logging
 
-from src.core import Core
+from src.core import WavFinder, WavFixer
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,9 @@ FIX_INCOMPATIBLE_WAVS = "fix_incompatible_wavs"
 
 
 class UI:
-    def __init__(self, core: Core):
-        self.core = core
+    def __init__(self, wav_finder: WavFinder, wav_fixer: WavFixer):
+        self.wav_finder = wav_finder
+        self.wav_fixer = wav_fixer
 
         # An easy but dirty way to detect whether these have been changes since the last call
         self.incompatible_files = []
@@ -72,7 +73,7 @@ class UI:
         # browse
         frm_browse = ttk.Frame(window)
         ent_directory = ttk.Entry(frm_browse)
-        ent_directory.insert(0, str(self.core.base_path))
+        ent_directory.insert(0, str(self.wav_finder.base_path))
 
         btn_browse = ttk.Button(
             frm_browse,
@@ -141,7 +142,7 @@ class UI:
         directory = filedialog.askdirectory(
             parent=self.window,
             title="Select a directory",
-            initialdir=self.core.base_path,
+            initialdir=self.wav_finder.base_path,
             mustexist=True,
         )
 
@@ -150,26 +151,28 @@ class UI:
             return
 
         path = pathlib.Path(directory)
-        if self.core.base_path == path:
+        if self.wav_finder.base_path == path:
             logger.debug("Same directory selected: nothing to do here")
             return
 
         try:
-            self.core.base_path = path
+            self.wav_finder.base_path = path
         except NotADirectoryError as e:
             logger.warning(
-                f"Failed to set path to {self.core.base_path}, caught the following exception: {e}"
+                f"Failed to set path to {self.wav_finder.base_path}, caught the following exception: {e}"
             )
 
         self.ent_directory.delete(0, tk.END)
-        self.ent_directory.insert(0, str(self.core.base_path))
+        self.ent_directory.insert(0, str(self.wav_finder.base_path))
         self._find_wavs()
 
     def _find_wavs(self):
         if self.is_busy():
             return
 
-        self.threads[FIND_WAVS] = threading.Thread(target=self.core.find_wav_files)
+        self.threads[FIND_WAVS] = threading.Thread(
+            target=self.wav_finder.find_wav_files
+        )
         self.threads[FIND_WAVS].start()
 
     def _find_incompatible_wavs(self):
@@ -177,7 +180,8 @@ class UI:
             return
 
         self.threads[FIND_INCOMPATIBLE_WAVS] = threading.Thread(
-            target=self.core.find_incompatible_wav_files
+            target=self.wav_fixer.find_incompatible_wav_files,
+            args=(self.wav_finder.files,),
         )
         self.threads[FIND_INCOMPATIBLE_WAVS].start()
 
@@ -192,7 +196,7 @@ class UI:
 
         int_indices = [int(index) for index in indices]
         self.threads[FIX_INCOMPATIBLE_WAVS] = threading.Thread(
-            target=self.core.fix_incompatible_wav_files, args=(int_indices,)
+            target=self.wav_fixer.fix_incompatible_wav_files, args=(int_indices,)
         )
         self.threads[FIX_INCOMPATIBLE_WAVS].start()
 
@@ -202,7 +206,7 @@ class UI:
         self._update_status_bar()
 
         # Update list if change was detected
-        if self.incompatible_files != self.core.incompatible_files:
+        if self.incompatible_files != self.wav_fixer.incompatible_files:
             self._update_tree_view()
 
         # plan next tick
@@ -213,9 +217,9 @@ class UI:
         longest_file_name = 0
         longest_file_path = 0
 
-        self.incompatible_files = self.core.incompatible_files
+        self.incompatible_files = self.wav_fixer.incompatible_files
         self.tree.delete(*self.tree.get_children())
-        for i, file in enumerate(self.core.incompatible_files):
+        for i, file in enumerate(self.wav_fixer.incompatible_files):
             self.tree.insert(
                 "",
                 "end",
@@ -232,12 +236,12 @@ class UI:
 
     def _update_status_bar(self):
         if self.is_find_wavs_active():
-            self.str_status_bar.set(f"Found {self.core.n_files:,} wav files")
+            self.str_status_bar.set(f"Found {self.wav_finder.n_files:,} wav files")
             return
 
         if self.is_find_incompatible_wavs_active():
             self.str_status_bar.set(
-                f"Analyzed {self.core.n_processed_files:,}/{self.core.n_files:,} files"
+                f"Analyzed {self.wav_fixer.n_processed_files:,}/{self.wav_finder.n_files:,} files"
             )
             return
 
@@ -246,7 +250,7 @@ class UI:
             return
 
         self.str_status_bar.set(
-            f" Selected {len(self.tree.selection()):,}/{self.core.n_incompatible_files:,} incompatible wav's:"
+            f" Selected {len(self.tree.selection()):,}/{self.wav_fixer.n_incompatible_files:,} incompatible wav's:"
         )
 
     def cleanup_threads(self):

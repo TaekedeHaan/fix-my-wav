@@ -8,20 +8,14 @@ from src import utils
 logger = logging.getLogger(__name__)
 
 
-class Core:
+class WavFinder:
     def __init__(self, base_path: pathlib.Path = pathlib.Path.home()):
         self._base_path = base_path
         self._files: list[pathlib.Path] = []
-        self._incompatible_files: list[pathlib.Path] = []
-
-        self.n_processed_files = 0
-        self.incompatible_hex_value = f"{constants.WAVE_FORMAT_EXTENSIBLE:04X}"
-        self.new_hex_value = f"{constants.WAVE_FORMAT_PCM:04X}"
 
     def reset(self):
         self.n_processed_files = 0
         self._files.clear()
-        self._incompatible_files.clear()
 
     def find_wav_files(self):
         self.reset()
@@ -42,17 +36,53 @@ class Core:
         logger.info(f"Found {len(self._files)} wav files, at {self.base_path}")
         return True
 
-    def find_incompatible_wav_files(self):
+    @property
+    def base_path(self):
+        return self._base_path
+
+    @base_path.setter
+    def base_path(self, base_path: pathlib.Path):
+        if not base_path.is_dir():
+            raise NotADirectoryError(
+                f"Can not set base path to {base_path}: it does not exist"
+            )
+
+        logger.info(f"Setting base path to {base_path}")
+        self.reset()
+        self._base_path = base_path
+
+    @property
+    def files(self):
+        return self._files.copy()
+
+    @property
+    def n_files(self):
+        return len(self._files)
+
+
+class WavFixer:
+    def __init__(self):
+        self._incompatible_files: list[pathlib.Path] = []
+
+        self.n_processed_files = 0
+        self.incompatible_hex_value = f"{constants.WAVE_FORMAT_EXTENSIBLE:04X}"
+        self.new_hex_value = f"{constants.WAVE_FORMAT_PCM:04X}"
+
+    def reset(self):
+        self.n_processed_files = 0
+        self._incompatible_files.clear()
+
+    def find_incompatible_wav_files(self, files: list[pathlib.Path]):
         self._incompatible_files.clear()
         self.n_processed_files = 0
 
-        if not self._files:
+        if not files:
             logger.warning(
                 "Can not look for incompatible files among files: the files are still empty"
             )
             return False
 
-        for file in self._files:
+        for file in files:
             self.n_processed_files = self.n_processed_files + 1
             if not self.is_wav_file_incompatible(file):
                 continue
@@ -63,7 +93,7 @@ class Core:
             )
 
         if not self._incompatible_files:
-            logger.info(f"Did not find any incompatible wav files at {self.base_path}")
+            logger.info(f"Did not find any incompatible wav files")
             return False
 
         logger.info(f"Found {len(self._incompatible_files)} incompatible wav files")
@@ -84,7 +114,7 @@ class Core:
         return True
 
     def fix_incompatible_wav_files(self, indices: Optional[list[int]] = None):
-        if not self._files:
+        if not self._incompatible_files:
             logger.info(
                 "Can not fix incompatible files: first find some incompatible files!"
             )
@@ -139,68 +169,9 @@ class Core:
         return True
 
     @property
-    def base_path(self):
-        return self._base_path
-
-    @base_path.setter
-    def base_path(self, base_path: pathlib.Path):
-        if not base_path.is_dir():
-            raise NotADirectoryError(
-                f"Can not set base path to {base_path}: it does not exist"
-            )
-
-        logger.info(f"Setting base path to {base_path}")
-        self.reset()
-        self._base_path = base_path
-
-    @property
-    def files(self):
-        return self._files.copy()
-
-    @property
     def incompatible_files(self):
         return self._incompatible_files.copy()
 
     @property
-    def n_files(self):
-        return len(self._files)
-
-    @property
     def n_incompatible_files(self):
         return len(self._incompatible_files)
-
-
-def main():
-    core = Core()
-
-    # set base path
-    user_path = pathlib.Path.home()
-    base_path = (
-        user_path
-        / "Downloads"
-        / "Various Artists - Ritmo Fantasía- Balearic Spanish Synth-Pop- Boogie and House (1982-1992) -Compiled by DJ Trujillo"
-    )
-    core.base_path = base_path
-
-    found_wav_files = core.find_wav_files()
-    if not found_wav_files:
-        return
-
-    found_incompatible_wav_files = core.find_incompatible_wav_files()
-    if not found_incompatible_wav_files:
-        return
-
-    fixed_incompatible_wav_files = core.fix_incompatible_wav_files()
-    if not fixed_incompatible_wav_files:
-        logger.info(
-            f"Failed to fix the incompatible wav files at {core.base_path}, exiting"
-        )
-        return
-
-    logger.info(
-        f"Successfully fixed {len(core.incompatible_files)} incompatible wav files"
-    )
-
-
-if __name__ == "__main__":
-    main()

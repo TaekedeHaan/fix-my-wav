@@ -1,7 +1,7 @@
 import pathlib
 
 from src.ui import UI
-from src.core import Core
+from src.core import WavFinder, WavFixer
 
 
 def main():
@@ -10,8 +10,9 @@ def main():
     path = music_path if music_path.is_dir() else pathlib.Path.home()
 
     # construct
-    core = Core(path)
-    ui = UI(core)
+    wav_finder = WavFinder(path)
+    wav_fixer = WavFixer()
+    ui = UI(wav_finder, wav_fixer)
 
     # run
     ui.run()
