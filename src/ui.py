@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 FIND_WAVS = "find_wavs"
 FIND_INCOMPATIBLE_WAVS = "find_incompatible_wavs"
 FIX_INCOMPATIBLE_WAVS = "fix_incompatible_wavs"
+SEARCH_META_DATA = "search_meta_data"
 
 
 class UI:
@@ -48,18 +49,17 @@ class UI:
         frm_list_incompatible_wavs = ttk.Frame(window)
 
         # tree view
-        frm_tree_view = ttk.Frame(frm_list_incompatible_wavs)
         tree = ttk.Treeview(
-            frm_tree_view,
+            frm_list_incompatible_wavs,
             columns=("file name", "path"),
         )
 
-        yscrollbar = tk.Scrollbar(frm_tree_view, orient=tk.VERTICAL)
+        yscrollbar = tk.Scrollbar(frm_list_incompatible_wavs, orient=tk.VERTICAL)
         yscrollbar.configure(command=tree.yview)
         tree.configure(yscrollcommand=yscrollbar.set)
         yscrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        xscrollbar = tk.Scrollbar(frm_tree_view, orient=tk.HORIZONTAL)
+        xscrollbar = tk.Scrollbar(frm_list_incompatible_wavs, orient=tk.HORIZONTAL)
         tree.configure(xscrollcommand=xscrollbar.set)
         xscrollbar.configure(command=tree.xview)
         xscrollbar.pack(side=tk.BOTTOM, fill=tk.X)
@@ -74,8 +74,8 @@ class UI:
         tree.tag_configure("incompatible", background="red")
         tree.tag_configure("fixed", background="green")
 
-        tree.pack(side=tk.TOP, fill=tk.X)
-        frm_tree_view.pack(fill=tk.X)
+        tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        frm_list_incompatible_wavs.pack(fill=tk.X)
 
         # browse
         frm_browse = ttk.Frame(window)
@@ -113,6 +113,17 @@ class UI:
         btn_fix_incompatible_wav.pack(side=tk.LEFT)
         frm_find_incompatible_wavs.pack(fill=tk.X)
 
+        # Find meta data
+        frm_find_meta_data = ttk.Frame(frm_execute)
+
+        btn_find_find_meta_data = ttk.Button(
+            frm_find_meta_data,
+            text="Find meta data",
+            command=self._find_meta_data,
+        )
+        btn_find_find_meta_data.pack(side=tk.LEFT)
+        frm_find_meta_data.pack(fill=tk.X)
+
         # status bar
         self.str_status_bar = tk.StringVar()
         lbl_status = ttk.Label(
@@ -123,9 +134,9 @@ class UI:
         lbl_status.pack(fill=tk.X, side=tk.BOTTOM)
 
         # Pack main frames
-        frm_list_incompatible_wavs.pack(fill=tk.X)
+        frm_list_incompatible_wavs.pack(fill=tk.BOTH, expand=True)
         frm_browse.pack(fill=tk.X)
-        frm_execute.pack(fill=tk.X)
+        frm_execute.pack(fill=tk.X, expand=False)
 
         # set members
         self.window = window
@@ -198,26 +209,34 @@ class UI:
         if self.is_busy():
             return
 
-        indices = self.tree.selection()
-        if not indices:
-            logger.info("No items selected")
+        files = self._get_selected_tree_view_files(tag="incompatible")
+        if not files:
+            logger.info("No incompatible files have been selected")
             return
-
-        items = [self.tree.item(index) for index in indices]
-        incompatible_items = [item for item in items if "incompatible" in item["tags"]]
-        if not incompatible_items:
-            logger.info("No incompatible items selected")
-            return
-
-        files = [
-            pathlib.Path(item["values"][1]) / item["values"][0]
-            for item in incompatible_items
-        ]
 
         self.threads[FIX_INCOMPATIBLE_WAVS] = threading.Thread(
             target=self.wav_fixer.fix_incompatible_wav_files, args=(files,)
         )
         self.threads[FIX_INCOMPATIBLE_WAVS].start()
+
+    def _find_meta_data(self):
+        if self.is_busy():
+            return
+
+        files = self._get_selected_tree_view_files()
+        if not files:
+            logger.info("No files have been selected")
+            return
+
+        if len(files) > 1:
+            logger.info(
+                "Currently only single files are supported, selecting the first file "
+            )
+
+        self.threads[SEARCH_META_DATA] = threading.Thread(
+            target=self.meta_finder.search, args=(files[0],)
+        )
+        self.threads[SEARCH_META_DATA].start()
 
     def _tick(self):
         self.cleanup_threads()
@@ -231,27 +250,30 @@ class UI:
         self.window.after(self.update_rate_ms, self._tick)
 
     def _clear_tree_view(self):
-        logger.debug("Clearing tree")
+        logger.debug("Clearing tree view")
         children = self.tree.get_children()
         self.tree.delete(*children)
 
     def _update_tree_view_items(self):
-        items_per_tick = 500
+        items_per_tick = 1000
 
         # determine tree size
         children = self.tree.get_children()
         n_tree = len(children)
+        n_files = self.wav_finder.n_files
 
-        if self.wav_finder.n_files == n_tree:
+        if n_files == n_tree:
             return
 
-        if self.wav_finder.n_files < len(children):
+        if n_files < len(children):
             logger.warning(
-                f"Something is going wrong as the tree of {n_tree} is longer than the files {self.wav_finder.n_files}"
+                f"Something is going wrong as the tree of {n_tree} is longer than the files {n_files}"
             )
             self._clear_tree_view()
 
-        new_files = self.wav_finder.files[n_tree::]
+        i_start = n_tree
+        i_end = min(i_start + items_per_tick, n_files)
+        new_files = self.wav_finder.files[i_start:i_end]
 
         # insert new items
         for i, file in enumerate(new_files):
@@ -263,9 +285,6 @@ class UI:
                 iid=iid,
                 values=(file.name, file.parent),
             )
-
-            if i > items_per_tick:
-                break
 
     def _get_tree_view_item(self, file: pathlib.Path):
         file_name = file.name
@@ -287,6 +306,24 @@ class UI:
                 return item
 
         return None
+
+    def _get_selected_tree_view_files(self, tag: str | None = None):
+        files: list[pathlib.Path] = []
+        indices = self.tree.selection()
+        if not indices:
+            logger.info("No items selected")
+            return files
+
+        items = [self.tree.item(index) for index in indices]
+
+        for item in items:
+            if tag is not None and tag not in item["tags"]:
+                continue
+
+            file = pathlib.Path(item["values"][1]) / item["values"][0]
+            files.append(file)
+
+        return files
 
     def _found_incompatible_file(self, file: pathlib.Path):
         logger.info("Found incompatible wav is called")
