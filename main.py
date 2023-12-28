@@ -1,7 +1,7 @@
 import pathlib
 
 from src.ui import UI
-from src.core import WavFinder, WavFixer
+from src.core import WavFinder, WavFixer, MetaFinder
 
 
 def main():
@@ -12,7 +12,8 @@ def main():
     # construct
     wav_finder = WavFinder(path)
     wav_fixer = WavFixer()
-    ui = UI(wav_finder, wav_fixer)
+    meta_finder = MetaFinder(user_token_file="token.txt")
+    ui = UI(wav_finder, wav_fixer, meta_finder)
 
     # run
     ui.run()

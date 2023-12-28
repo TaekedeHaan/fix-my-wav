@@ -5,7 +5,7 @@ import threading
 from tkinter import filedialog
 import logging
 
-from src.core import WavFinder, WavFixer
+from src.core import WavFinder, WavFixer, MetaFinder
 
 logger = logging.getLogger(__name__)
 
@@ -15,9 +15,14 @@ FIX_INCOMPATIBLE_WAVS = "fix_incompatible_wavs"
 
 
 class UI:
-    def __init__(self, wav_finder: WavFinder, wav_fixer: WavFixer):
+    def __init__(
+        self, wav_finder: WavFinder, wav_fixer: WavFixer, meta_finder: MetaFinder
+    ):
         self.wav_finder = wav_finder
         self.wav_fixer = wav_fixer
+        self.meta_finder = meta_finder
+
+        # set callbacks
         self.wav_fixer.cb_found_incompatible_file = self._found_incompatible_file
         self.wav_fixer.cb_fixed_incompatible_file = self._fixed_incompatible_file
 
