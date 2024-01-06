@@ -5,7 +5,8 @@ import threading
 from tkinter import filedialog
 import logging
 
-from src.core import WavFinder, WavFixer, MetaFinder
+from src.core import WavFinder, WavFixer
+from src.core import DiscogsSearchEngine, MetaFinder
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +18,14 @@ SEARCH_META_DATA = "search_meta_data"
 
 class UI:
     def __init__(
-        self, wav_finder: WavFinder, wav_fixer: WavFixer, meta_finder: MetaFinder
+        self,
+        wav_finder: WavFinder,
+        wav_fixer: WavFixer,
+        discogs_search_engine: DiscogsSearchEngine,
     ):
         self.wav_finder = wav_finder
         self.wav_fixer = wav_fixer
-        self.meta_finder = meta_finder
+        self.discogs_search_engine = discogs_search_engine
 
         # set callbacks
         self.wav_fixer.cb_found_incompatible_file = self._found_incompatible_file
@@ -233,8 +237,12 @@ class UI:
                 "Currently only single files are supported, selecting the first file "
             )
 
+        meta_finder = MetaFinder(
+            files[0], discogs_search_engine=self.discogs_search_engine
+        )
+
         self.threads[SEARCH_META_DATA] = threading.Thread(
-            target=self.meta_finder.search, args=(files[0],)
+            target=meta_finder.search, args=()
         )
         self.threads[SEARCH_META_DATA].start()
 
