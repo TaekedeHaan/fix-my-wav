@@ -1,6 +1,6 @@
-# type: ignore
 import pathlib
 import logging
+import copy
 
 import discogs_client
 import taglib
@@ -48,6 +48,9 @@ class Tag:
         print(f"Date: {self.date}")
         print(f"Genre: {", ".join(self.genres)}")
         print(f"track number: {self.track_number}")
+
+    def copy(self):
+        return copy.deepcopy(self)
 
 
 class FileTagReader(Tag):
@@ -109,6 +112,10 @@ class FileTagReader(Tag):
 
         return values[0]
 
+    def copy(self):
+        self.song = None  # can not copy taglib.File
+        return super().copy()
+
 
 class DiscogsTagReader(Tag):
     def __init__(self, release: discogs_client.Release):
@@ -119,7 +126,7 @@ class DiscogsTagReader(Tag):
     def load_tags(self):
         self.album = str(self.release.title)
         self.title = ""
-        self.year = self.release.year
+        self.year = str(self.release.year)
         self.genres = self.release.genres
         self.artists = [artist.name for artist in self.release.artists]
         self.url = self.release.url

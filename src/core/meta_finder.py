@@ -14,6 +14,7 @@ class MetaFinder:
         discogs_search_engine: DiscogsSearchEngine | None = None,
     ):
         self.file_tag_reader = FileTagReader(file)
+        self.file_tag_writer = self.file_tag_reader.copy()
         self.discogs_tag_reader = None
         self.discogs_search_engine = discogs_search_engine
 

@@ -1,17 +1,20 @@
 import logging
 import tkinter as tk
 import tkinter.ttk as ttk
+import webbrowser  # for opening search results in your webbrowser
 
 from src.core import MetaFinder
 from src.core.tag_reader import Tag, DiscogsTagReader
 
 logger = logging.getLogger(__name__)
 
+MISSING_COLOR = "grey"
+
 
 class TagWindow(tk.Toplevel):
     WIDTH = 600
     HEIGHT = 200
-    TAGS = ["status", "title", "artists", "album", "year", "date", "genres", "#"]
+    TAGS = ["Status", "Title", "Artists", "Album", "Year", "Date", "Genres", "#"]
 
     def __init__(
         self,
@@ -23,6 +26,7 @@ class TagWindow(tk.Toplevel):
         self.center()
 
         self.meta_finder = meta_finder
+        self.menu: tk.Menu | None = None
 
         # fill window
         self.title("Tag finder")
@@ -47,55 +51,106 @@ class TagWindow(tk.Toplevel):
         self.grab_set()
 
         # to detect change
+        self.selected_tags: list[str] = []
         self.files_tags: list[str] = []
         self.discogs_tags: list[str] = []
 
-    def _get_selected_item(self, event: tk.Event):
+    def _get_selected_tag(self, event: tk.Event):
         col = self.tree.identify_column(event.x)
 
         if col == "#0":
             logger.debug("Selected tag column")
             return
         elif col == "#1":
-            logger.debug("Selected file tag column")
-            return self.meta_finder.file_tag_reader
+            logger.debug("Selected file tag writer column")
+            return self.meta_finder.file_tag_writer
         elif col == "#2":
-            logger.debug("Selected Discogs tag column")
+            logger.debug("Selected file tag reader column")
+            return self.meta_finder.file_tag_reader
+        elif col == "#3":
+            logger.debug("Selected Discogs tag reader column")
             return self.meta_finder.discogs_tag_reader
 
-    def _click_tree(self, event: tk.Event):
+    def _options_tree(self, event: tk.Event):
+        logger.debug("Show options")
         self.tree.item(self.tree.focus())
-        tag_reader = self._get_selected_item(event)
+        self.menu = tk.Menu(self, tearoff=0)
 
-        if not isinstance(tag_reader, DiscogsTagReader):
+        open_item = lambda: self._open_item(event)
+        self.menu.add_command(label="open", command=open_item)
+
+        select_items = lambda: self._select_items(event)
+        self.menu.add_command(label="select", command=select_items)
+
+        try:
+            self.menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.menu.grab_release()
+
+    def _open_item(self, event: tk.Event):
+        logger.debug("Open item")
+        self.tree.item(self.tree.focus())
+        selected_tag = self._get_selected_tag(event)
+
+        if not isinstance(selected_tag, DiscogsTagReader):
             return
 
-        # for opening the link in browser
-        if not tag_reader.url:
+        if not selected_tag.url:
             logger.debug("url is empty")
             return
 
-        logger.info(f"Opening {tag_reader.url} in web browser")
-        import webbrowser
+        logger.info(f"Opening {selected_tag.url} in web browser")
+        webbrowser.open("{}".format(selected_tag.url))
 
-        webbrowser.open("{}".format(tag_reader.url))
+    def _select_items(self, event: tk.Event):
+        logger.debug("Select item(s)")
+        self.tree.item(self.tree.focus())
+
+        # select tags
+        file_tag_writer = self.meta_finder.file_tag_writer
+        selected_tag = self._get_selected_tag(event)
+        if not selected_tag:
+            logger.debug("No tag selected")
+            return
+
+        selected_fields = self.tree.selection()
+
+        # TODO: we need some way tu update a set of tags from an other object
+        for iid in selected_fields:
+            if iid == "title":
+                file_tag_writer.title = selected_tag.title
+            if iid == "artists":
+                file_tag_writer.artists = selected_tag.artists
+            if iid == "album":
+                file_tag_writer.album = selected_tag.album
+            elif iid == "year":
+                file_tag_writer.year = selected_tag.year
+            elif iid == "date":
+                file_tag_writer.date = selected_tag.date
+            elif iid == "genres":
+                file_tag_writer.genres = selected_tag.genres
 
     def _construct_tree_view(self, frm: ttk.Frame):
         # tree view
         tree = ttk.Treeview(
             frm,
-            columns=("tag", "file", "Discogs"),
+            columns=("tag", "selected", "file", "discogs"),
         )
 
         tree.column("#0", anchor=tk.NW, stretch=False, width=50)
         tree.heading("#0", text="Tag")
         tree.column("#1", anchor=tk.NW)
-        tree.heading("#1", text="File")
+        tree.heading("#1", text="Selected")
         tree.column("#2", anchor=tk.NW)
-        tree.heading("#2", text="Discogs")
+        tree.heading("#2", text="File")
+        tree.column("#3", anchor=tk.NW)
+        tree.heading("#3", text="Discogs")
+
+        tree.tag_configure("missing", background=MISSING_COLOR)
 
         tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        tree.bind(sequence="<Double-1>", func=self._click_tree)
+        tree.bind(sequence="<Double-1>", func=self._open_item)
+        tree.bind(sequence="<Button-3>", func=self._options_tree)
         return tree
 
     def _clear_tree_view(self):
@@ -104,23 +159,33 @@ class TagWindow(tk.Toplevel):
         self.tree.delete(*children)
 
     def _update_tree_view(self):
-        files_tags = self.collect_file_tags()
+        selected_tags = [""] + self.collect_tags(self.meta_finder.file_tag_writer)
+        file_tags = self.collect_file_tags()
         discogs_tags = self.collect_discogs_tags()
 
-        if files_tags == self.files_tags and discogs_tags == self.discogs_tags:
+        if (
+            selected_tags == self.selected_tags
+            and file_tags == self.files_tags
+            and discogs_tags == self.discogs_tags
+        ):
             return
 
         self._clear_tree_view()
-        for iid, tags in enumerate(zip(self.TAGS, files_tags, discogs_tags)):
+        for tags in zip(self.TAGS, selected_tags, file_tags, discogs_tags):
+            iid = tags[0].lower()
+            found = tags[1] != "-"
             self.tree.insert(
                 "",
                 "end",
                 text=tags[0],
                 iid=iid,
                 values=tags[1:],
+                tags=("found" if found else "missing",),
             )
 
-        self.files_tags = files_tags
+        # update
+        self.selected_tags = selected_tags
+        self.files_tags = file_tags
         self.discogs_tags = discogs_tags
 
     def collect_discogs_tags(self) -> list[str]:
