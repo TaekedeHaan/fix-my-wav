@@ -1,12 +1,14 @@
 import pathlib
 
-from ui.app import App
+from src.ui.app import App
 from src.core import WavFinder, WavFixer, DiscogsSearchEngine
 
 
 def main():
     # configure
-    music_path = pathlib.Path.home() / "Music"
+    music_path = (
+        pathlib.Path.home() / "Music" / "PioneerDJ" / "Tracks" / "Digital" / "2023"
+    )
     path = music_path if music_path.is_dir() else pathlib.Path.home()
 
     # construct

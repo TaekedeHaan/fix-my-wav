@@ -8,6 +8,8 @@ import logging
 from src.core import WavFinder, WavFixer
 from src.core import DiscogsSearchEngine, MetaFinder
 
+from src.ui.tag_window import TagWindow
+
 logger = logging.getLogger(__name__)
 
 FIND_WAVS = "find_wavs"
@@ -32,7 +34,10 @@ class App:
         self.wav_fixer.cb_fixed_incompatible_file = self._fixed_incompatible_file
 
         window = tk.Tk()
+        self.child_windows: list[tk.Toplevel] = []
         image_subsample = 20
+
+        window.eval(f"tk::PlaceWindow {str(window)} center")
 
         # Load resources
         path_resources = pathlib.Path().absolute() / "resources"
@@ -245,6 +250,10 @@ class App:
             target=meta_finder.search, args=()
         )
         self.threads[SEARCH_META_DATA].start()
+
+        new_window = TagWindow(meta_finder, master=self.window)
+        new_window.run()
+        self.child_windows.append(new_window)
 
     def _tick(self):
         self.cleanup_threads()

@@ -116,12 +116,10 @@ class DiscogsTagReader(Tag):
         self.release = release
         self.load_tags()
 
-        # unique tags
-        self.url = ""
-
     def load_tags(self):
-        self.album = self.release.title
+        self.album = str(self.release.title)
         self.title = ""
         self.year = self.release.year
         self.genres = self.release.genres
         self.artists = [artist.name for artist in self.release.artists]
+        self.url = self.release.url
