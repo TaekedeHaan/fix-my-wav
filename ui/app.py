@@ -16,7 +16,7 @@ FIX_INCOMPATIBLE_WAVS = "fix_incompatible_wavs"
 SEARCH_META_DATA = "search_meta_data"
 
 
-class UI:
+class App:
     def __init__(
         self,
         wav_finder: WavFinder,

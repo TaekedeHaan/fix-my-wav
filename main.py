@@ -1,6 +1,6 @@
 import pathlib
 
-from src.ui import UI
+from ui.app import App
 from src.core import WavFinder, WavFixer, DiscogsSearchEngine
 
 
@@ -13,10 +13,10 @@ def main():
     wav_finder = WavFinder(path)
     wav_fixer = WavFixer()
     discogs_search_engine = DiscogsSearchEngine(user_token_file="token.txt")
-    ui = UI(wav_finder, wav_fixer, discogs_search_engine)
+    app = App(wav_finder, wav_fixer, discogs_search_engine)
 
     # run
-    ui.run()
+    app.run()
 
 
 if __name__ == "__main__":
