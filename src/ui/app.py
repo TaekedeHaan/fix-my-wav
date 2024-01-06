@@ -19,6 +19,9 @@ SEARCH_META_DATA = "search_meta_data"
 
 
 class App:
+    WIDTH = 1000
+    HEIGHT = 500
+
     def __init__(
         self,
         wav_finder: WavFinder,
@@ -34,10 +37,9 @@ class App:
         self.wav_fixer.cb_fixed_incompatible_file = self._fixed_incompatible_file
 
         window = tk.Tk()
+        window.geometry(f"{self.WIDTH}x{self.HEIGHT}")
         self.child_windows: list[tk.Toplevel] = []
         image_subsample = 20
-
-        window.eval(f"tk::PlaceWindow {str(window)} center")
 
         # Load resources
         path_resources = pathlib.Path().absolute() / "resources"
