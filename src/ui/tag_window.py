@@ -3,18 +3,22 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import webbrowser  # for opening search results in your webbrowser
 
+from src.ui import constants
+from src.ui.utils.displacement_tracker import DisplacementTracker
 from src.core import MetaFinder
 from src.core.tag_reader import Tag, DiscogsTagReader
 
 logger = logging.getLogger(__name__)
 
+ROW_HEIGHT = 25
+TAGS = ["Status", "Title", "Artists", "Album", "Year", "Date", "Genres", "#"]
+
+WIDTH = 600
+HEIGHT = len(TAGS) * ROW_HEIGHT + 60
 MISSING_COLOR = "grey"
 
 
 class TagWindow(tk.Toplevel):
-    WIDTH = 600
-    HEIGHT = 200
-    TAGS = ["Status", "Title", "Artists", "Album", "Year", "Date", "Genres", "#"]
 
     def __init__(
         self,
@@ -22,11 +26,21 @@ class TagWindow(tk.Toplevel):
         master: tk.Tk | None = None,
     ):
         super().__init__(master=master)
-        self.geometry(f"{self.WIDTH}x{self.HEIGHT}")
-        self.center()
+        self.focus_set()
+        self.geometry(f"{WIDTH}x{HEIGHT}")
+
+        if self.master:
+            self.transient(master)
 
         self.meta_finder = meta_finder
         self.menu: tk.Menu | None = None
+        self.master_displacement_tracker = DisplacementTracker(self.master)
+        self.displacement_tracker = DisplacementTracker(self)
+
+        self.x_disp_command_total = 0.0
+        self.y_disp_command_total = 0.0
+
+        self.is_first_tick = True
 
         # fill window
         self.title("Tag finder")
@@ -44,8 +58,7 @@ class TagWindow(tk.Toplevel):
         frm_tree.pack(fill=tk.BOTH, expand=True)
 
         # settings
-        self.frequency = 50
-        self.update_rate_ms = round(1000 / self.frequency)
+        self.update_rate_ms = round(1000 / constants.UPDATE_FREQUENCY)
 
         # block interaction with the underlying window
         self.grab_set()
@@ -137,6 +150,20 @@ class TagWindow(tk.Toplevel):
             columns=("tag", "selected", "file", "discogs"),
         )
 
+        style = ttk.Style()
+        style.configure(
+            "Treeview",
+            background="white",
+            foreground="black",
+            rowheight=ROW_HEIGHT,
+            fieldbackground="white",
+        )
+        style.map(
+            "Treeview",
+            foreground=[("selected", "black")],
+            background=[("selected", "white")],
+        )
+
         tree.column("#0", anchor=tk.NW, stretch=False, width=50)
         tree.heading("#0", text="Tag")
         tree.column("#1", anchor=tk.NW)
@@ -146,7 +173,7 @@ class TagWindow(tk.Toplevel):
         tree.column("#3", anchor=tk.NW)
         tree.heading("#3", text="Discogs")
 
-        tree.tag_configure("missing", background=MISSING_COLOR)
+        # tree.tag_configure("missing", background=MISSING_COLOR)
 
         tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         tree.bind(sequence="<Double-1>", func=self._open_item)
@@ -171,7 +198,7 @@ class TagWindow(tk.Toplevel):
             return
 
         self._clear_tree_view()
-        for tags in zip(self.TAGS, selected_tags, file_tags, discogs_tags):
+        for tags in zip(TAGS, selected_tags, file_tags, discogs_tags):
             iid = tags[0].lower()
             found = tags[1] != "-"
             self.tree.insert(
@@ -188,10 +215,33 @@ class TagWindow(tk.Toplevel):
         self.files_tags = file_tags
         self.discogs_tags = discogs_tags
 
+    def _update_position(self):
+        if self.is_first_tick:
+            self.center()
+            return
+
+        x = self.winfo_x()
+        y = self.winfo_y()
+        x_master_displacement, y_master_displacement = (
+            self.master_displacement_tracker.get_displacement()
+        )
+
+        x_error = x_master_displacement - self.x_disp_command_total
+        y_error = y_master_displacement - self.y_disp_command_total
+
+        # a simple P(ID) controller to smoothen the motion
+        x_disp_command = round(constants.WINDOW_TRACKING_STIFFNESS * x_error)
+        y_disp_command = round(constants.WINDOW_TRACKING_STIFFNESS * y_error)
+
+        self.x_disp_command_total = self.x_disp_command_total + x_disp_command
+        self.y_disp_command_total = self.y_disp_command_total + y_disp_command
+
+        self.geometry(f"+{x + int(x_disp_command)}+{y + int(y_disp_command)}")
+
     def collect_discogs_tags(self) -> list[str]:
         discogs_tag_reader = self.meta_finder.discogs_tag_reader
         if not discogs_tag_reader:
-            return ["searching"] + (len(self.TAGS) - 1) * ["-"]
+            return ["searching"] + (len(TAGS) - 1) * ["-"]
 
         return ["found"] + self.collect_tags(discogs_tag_reader)
 
@@ -211,15 +261,22 @@ class TagWindow(tk.Toplevel):
         return [title, artists, album, year, date, genres, track_number]
 
     def center(self):
-        w = self.WIDTH  # self.winfo_width()
-        h = self.HEIGHT  # self.winfo_height()
-        x = self.master.winfo_x() + (self.master.winfo_width() - w) / 2
-        y = self.master.winfo_y() + (self.master.winfo_height() - h) / 2
+        w = WIDTH  # self.winfo_width()
+        h = HEIGHT  # self.winfo_height()
+        if self.master:
+            x = self.master.winfo_x() + (self.master.winfo_width() - w) / 2
+            y = self.master.winfo_y() + (self.master.winfo_height() - h) / 2
+        else:
+            x = 600
+            y = 500
 
         self.geometry(f"+{x:.0f}+{y:.0f}")
 
     def _tick(self):
         self._update_tree_view()
+        self._update_position()
+
+        self.is_first_tick = False
 
         # plan next tick
         self.after(self.update_rate_ms, self._tick)

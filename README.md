@@ -1,9 +1,17 @@
 # Fix my wav's
 Fix your wave files to prevent the notorious [E-8305] showing up on you CDJ/XDJ devices 
 
-<img src="doc/screenshot.png"
-     alt="Fix my wav's overview"
-     style="float: left; margin-right: 10px;" />
+<img src="doc/screenshot.png" alt="Fix my wav's overview" style="float: left; margin-right: 10px;"/>
+
+## Installation
+```
+pip install -r requirements.txt
+```
+
+## Run
+```
+python3 main.py
+```
 
 ## Attribution
 <a href="https://www.flaticon.com/free-icons/files-and-folders" title="files and folders icons">Files and folders icons created by Freepik - Flaticon</a>

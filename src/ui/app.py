@@ -5,6 +5,7 @@ import threading
 from tkinter import filedialog
 import logging
 
+from src.ui import constants
 from src.core import WavFinder, WavFixer
 from src.core import DiscogsSearchEngine, MetaFinder
 
@@ -158,8 +159,7 @@ class App:
         self.threads: dict[str, threading.Thread] = {}
 
         # settings
-        self.frequency = 50
-        self.update_rate_ms = round(1000 / self.frequency)
+        self.update_rate_ms = round(1000 / constants.UPDATE_FREQUENCY)
 
         # start
         self._find_wavs()
